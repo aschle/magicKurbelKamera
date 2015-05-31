@@ -20,6 +20,6 @@ while 1:
 				img = pygame.image.load(image)
 				screen.fill((255,255,255))
 				screen.blit(img,(0,0))
-				clock.tick(10)
+				clock.tick(1)
 				pygame.display.flip()
 				count = count + 1
