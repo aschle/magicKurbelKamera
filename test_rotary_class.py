@@ -13,7 +13,7 @@ BUTTON = 4	# Pin 7
 # This is the event callback routine to handle events
 def showImage(event, frame):
 	if event == RotaryEncoder.CLOCKWISE:
-		print frame, "Clockwise", image
+		print frame, "Clockwise"
 
 	elif event == RotaryEncoder.ANTICLOCKWISE:
 		print frame, "Anticlockwise"
