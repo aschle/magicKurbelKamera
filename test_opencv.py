@@ -3,7 +3,7 @@
 import pygame
 
 pygame.init()
-screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN  )
+screen = pygame.display.set_mode((0, 0)  )
 
 clock = pygame.time.Clock()
 
@@ -41,7 +41,7 @@ while 1:
 		image = 'video/frames/NEUBR_24_%04d.jpg' % (count,)
 		img = pygame.image.load(image)
 		screen.fill((255,255,255))
-		scaled_image = aspect_scale(img, (1024, 768)); 
+		scaled_image = aspect_scale(img, (1024, 768));
 		screen.blit(scaled_image,(0,0))
 		clock.tick(5)
 		pygame.display.flip()
