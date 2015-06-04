@@ -1,9 +1,30 @@
 # -*- coding: utf-8 -*-
 
 import pygame
+
 import picamera
 
+from multiprocessing import Process, Lock
+import subprocess
+import os
+import time
 
+
+
+global WIDTH
+global HEIGHT
+
+global CAM_FRAMERATE
+global REC_FRAMES
+
+WIDTH = 352
+HEIGHT = 288
+
+CAM_FRAMERATE = 32
+REC_FRAMES = 32 * 10
+
+
+# not sure alexa stole this code from the internets
 def aspect_scale(img,(bx,by)):
     """ Scales 'img' to fit into box bx/by.
      This method will retain the original image's aspect ratio """
@@ -32,51 +53,93 @@ def aspect_scale(img,(bx,by)):
     return pygame.transform.scale(img, (int(sx),int(sy)))
 
 
-
+# displays a single frame from the Neubronner Film
 def show_image(screen, clock, frame):
-    image = '/var/tmp/NEUBR_28_%04d.jpg' % (frame,)
-    # img = aspect_scale(pygame.image.load(image), (352,288))
-    img = pygame.image.load(image)
+    image = '/var/tmp/frames/NEUBR_28_%04d.jpg' % (frame,)
+    img = aspect_scale(pygame.image.load(image), (WIDTH,HEIGHT))
+    # img = pygame.image.load(image)
     screen.blit(img,(0,0))
 
-    pygame.display.flip()
-    # pygame.display.update()
+    # pygame.display.flip()
+    pygame.display.update()
 
-    clock.tick_busy_loop(100)
+    # setting the max Framerate to 60 Hz according the the display (not sure which function is 'better')
+    # clock.tick_busy_loop(60)
+    clock.tick(60)
     ms_since_start = pygame.time.get_ticks()
-    print(frame, 'FPS', int(clock.get_fps()), 'ms', ms_since_start)
+
+    # print(frame, 'FPS', int(clock.get_fps()), 'ms', ms_since_start)
+
+
+# generator of filenames for the recording
+def filenames():
+    frame = 1
+    while frame <= REC_FRAMES:
+        yield '/var/tmp/rec/%04d.jpg' % (frame,)
+        frame += 1
+
+
+def recordFrames(lock):
+    # prevent processes from queueing up when the rec button is pressed while recording
+    if os.path.exists('RECORD_LOCK'):
+        print('I\'m sorry Dave, I\'m afraid I can\'t do that…')
+        return
+
+    # only one recording
+    lock.acquire()
+    with open('RECORD_LOCK', 'a'): os.utime('RECORD_LOCK', None)
+
+    # cleanup recording directory
+    filelist = [ f for f in os.listdir("/var/tmp/rec/") if f.endswith(".jpg") ]
+    for f in filelist:
+        os.remove('/var/tmp/rec/' + f)
+
+    print('record button pressed')
+
+    # instantiate a camera object
+    camera = picamera.PiCamera()
+    # setting the camera up
+    camera.resolution = (352,244)
+    camera.framerate = CAM_FRAMERATE
+    camera.hflip = True
+    camera.vflip = True
+
+    # record
+    print('start recording')
+    camera.capture_sequence(filenames(), use_video_port=True)
+    camera.close() # gracefully shutdown the camera (freeing all resources)
+    print('finished recording')
+
+    # release the lock and delete the lock file
+    os.remove('RECORD_LOCK')
+    lock.release()
 
 
 
+if __name__ == '__main__':
+    print('start magicKurbelKamera')
 
 
-def main():
+    # Lock Object for recording, only one recording should take place at once
+    rec_lock = Lock()
+    # remove an old lock-file (debris from a crash)
+    if os.path.exists('RECORD_LOCK'): os.remove('RECORD_LOCK')
 
-    print('start')
 
+    # pygame setup
     pygame.init()
     clock = pygame.time.Clock()
-
-    pygame.display.set_caption('MagicKurbelKamera')
-
-    screen = pygame.display.set_mode((352,244)) # pygame.FULLSCREEN  352,244
-
-    background = pygame.Surface(screen.get_size())
-    background.fill((255,255,255))
-    background = background.convert()
-
-
-    camera = picamera.PiCamera()
-    camera.resolution = (352,244)
-    camera.framerate = 60
-
-    camera.preview_fullscreen = False
-    camera.preview_window = (0, 0, 352, 244)
-
+    pygame.display.set_caption('MagicKurbelKamera') # set a window title
+    screen = pygame.display.set_mode((WIDTH,HEIGHT)) # pygame.FULLSCREEN  352,244
+    background = pygame.Surface(screen.get_size()) # dunno
+    background.fill((255,255,255)) # black background
+    background = background.convert() # dunno
+    # end of pygame setup
 
     frame = 1
-    rec_frame = 1
     mainloop = True
+
+    # magic ahead
     while mainloop:
         for event in pygame.event.get():
 
@@ -88,6 +151,7 @@ def main():
 
                 # left and right arrow
                 if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
+                    # increment or decrement the actual frame number
                     if event.key == pygame.K_LEFT:   frame -= 1
                     elif event.key == pygame.K_RIGHT: frame += 1
 
@@ -102,25 +166,29 @@ def main():
 
                 # r
                 elif event.key == pygame.K_r:
-                    image = '/var/tmp/rec/%04d.jpg' % (rec_frame,)
-                    print('REC BUTTON ', image)
-                    camera.capture(image, use_video_port=True)
-                    rec_frame += 1
+                    Process(target=recordFrames, args=(rec_lock,)).start()
 
 
                 # p
                 elif event.key == pygame.K_p:
-                    if camera.previewing:
-                        camera.stop_preview()
-                    else:
-                        camera.start_preview()
+                    command = "sudo halt"
+                    subprocess.call(command, shell = True)
 
 
 
 
+# this stuff is just a reminder what has to be done before starting the magicKurbelKamera
+
+# just once
+# create ramdisk
+
+# sudo mkdir /var/tmp
+# echo "tmpfs /var/tmp tmpfs nodev,nosuid,size=250M 0 0" | sudo tee --append /etc/fstab
+# sudo mount -a
 
 
+# following stuff has to happen before starting the magic
 
-
-
-main()
+# mkdir /var/tmp/rec
+# mkdir /var/tmp/frames
+# cp /home/pi/Desktop/magicKurbelKamera/video/frames/*.jpg /var/tmp/frames/
