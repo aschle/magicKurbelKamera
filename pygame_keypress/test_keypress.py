@@ -14,14 +14,14 @@ import time
 global WIDTH
 global HEIGHT
 
-global CAM_FRAMERATE
-global REC_FRAMES
+global REC_DURATION
+global REC_FPS
 
-WIDTH = 352
-HEIGHT = 288
+WIDTH  = 450
+HEIGHT = int(244 * WIDTH / 352)
 
-CAM_FRAMERATE = 32
-REC_FRAMES = 32 * 10
+REC_DURATION = 10 # seconds
+REC_FPS = 50
 
 
 # not sure alexa stole this code from the internets
@@ -74,8 +74,8 @@ def show_image(screen, clock, frame):
 # generator of filenames for the recording
 def filenames():
     frame = 1
-    while frame <= REC_FRAMES:
-        yield '/var/tmp/rec/%04d.jpg' % (frame,)
+    while frame <= REC_DURATION * REC_FPS:
+        yield '/var/tmp/rec/%04d.jpg' % (1000 * frame / REC_FPS,)
         frame += 1
 
 
@@ -100,7 +100,7 @@ def recordFrames(lock):
     camera = picamera.PiCamera()
     # setting the camera up
     camera.resolution = (352,244)
-    camera.framerate = CAM_FRAMERATE
+    camera.framerate = REC_FPS
     camera.hflip = True
     camera.vflip = True
 
@@ -117,8 +117,7 @@ def recordFrames(lock):
 
 
 if __name__ == '__main__':
-    print('start magicKurbelKamera')
-
+    print('start magicKurbelKamera\nresolution: {} x {}'.format(WIDTH,HEIGHT))
 
     # Lock Object for recording, only one recording should take place at once
     rec_lock = Lock()
