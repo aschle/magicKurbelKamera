@@ -24,6 +24,16 @@ REC_DURATION = 10 # seconds
 REC_FPS = 50
 
 
+global REC_TIMESTAMPS
+global FIRST_REC_TIMESTAMP
+REC_TIMESTAMPS = []
+FIRST_REC_TIMESTAMP = -1
+
+
+global STATE
+STATE = 'init'
+
+
 # not sure alexa stole this code from the internets
 def aspect_scale(img,(bx,by)):
     """ Scales 'img' to fit into box bx/by.
@@ -101,7 +111,7 @@ def recordFrames(lock):
     # record
     print('{} - start recording'.format(datetime.now()))
 
-   camera.capture_sequence(
+    camera.capture_sequence(
         [
             '/var/tmp/rec/%06d.jpg' % (1000 * frame / REC_FPS,)
             for frame in range(REC_DURATION * REC_FPS)
@@ -114,6 +124,15 @@ def recordFrames(lock):
     # release the lock and delete the lock file
     os.remove('RECORD_LOCK')
     lock.release()
+
+
+
+def buildGif(folder='/var/tmp/rec', timestamps=REC_TIMESTAMPS):
+    ms_per_frame = 1000/REC_FPS
+    timestamps = [int(round(x/ms_per_frame))*(ms_per_frame) for x in timestamps] # rounds each timestamp to closest 20
+    print(timestamps)
+    # TODO: implement gif building
+
 
 
 
@@ -161,9 +180,21 @@ if __name__ == '__main__':
 
                     show_image(screen, clock, frame)
 
+                    # count ms since first tick
+                    if FIRST_REC_TIMESTAMP == -1:
+                        FIRST_REC_TIMESTAMP = pygame.time.get_ticks()
+                    else:
+                        REC_TIMESTAMPS.append(pygame.time.get_ticks() - FIRST_REC_TIMESTAMP)
+
+
+
                 # escape
                 elif event.key == pygame.K_ESCAPE:
                     mainloop = False # user pressed ESC
+
+                # h
+                elif event.key == pygame.K_h:
+                    buildGif()
 
                 # r
                 elif event.key == pygame.K_r:
