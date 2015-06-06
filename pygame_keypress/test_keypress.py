@@ -8,18 +8,18 @@ from multiprocessing import Process, Lock
 import subprocess
 import os
 import time
+from datetime import datetime
 
 
 
 global WIDTH
 global HEIGHT
-
-global REC_DURATION
-global REC_FPS
-
 WIDTH  = 450
 HEIGHT = int(244 * WIDTH / 352)
 
+global RECORDER
+global REC_DURATION
+global REC_FPS
 REC_DURATION = 10 # seconds
 REC_FPS = 50
 
@@ -71,18 +71,12 @@ def show_image(screen, clock, frame):
     # print(frame, 'FPS', int(clock.get_fps()), 'ms', ms_since_start)
 
 
-# generator of filenames for the recording
-def filenames():
-    frame = 1
-    while frame <= REC_DURATION * REC_FPS:
-        yield '/var/tmp/rec/%04d.jpg' % (1000 * frame / REC_FPS,)
-        frame += 1
 
 
 def recordFrames(lock):
     # prevent processes from queueing up when the rec button is pressed while recording
     if os.path.exists('RECORD_LOCK'):
-        print('I\'m sorry Dave, I\'m afraid I can\'t do that…')
+        print('{} - I\'m sorry Dave, I\'m afraid I can\'t start another recording…'.format(datetime.now()))
         return
 
     # only one recording
@@ -94,7 +88,7 @@ def recordFrames(lock):
     for f in filelist:
         os.remove('/var/tmp/rec/' + f)
 
-    print('record button pressed')
+    print('{} - record button pressed'.format(datetime.now()))
 
     # instantiate a camera object
     camera = picamera.PiCamera()
@@ -105,10 +99,17 @@ def recordFrames(lock):
     camera.vflip = True
 
     # record
-    print('start recording')
-    camera.capture_sequence(filenames(), use_video_port=True)
+    print('{} - start recording'.format(datetime.now()))
+
+   camera.capture_sequence(
+        [
+            '/var/tmp/rec/%06d.jpg' % (1000 * frame / REC_FPS,)
+            for frame in range(REC_DURATION * REC_FPS)
+        ],
+        use_video_port=True)
+
     camera.close() # gracefully shutdown the camera (freeing all resources)
-    print('finished recording')
+    print('{} - finished recording'.format(datetime.now()))
 
     # release the lock and delete the lock file
     os.remove('RECORD_LOCK')
@@ -117,7 +118,8 @@ def recordFrames(lock):
 
 
 if __name__ == '__main__':
-    print('start magicKurbelKamera\nresolution: {} x {}'.format(WIDTH,HEIGHT))
+
+    print('{} - start magicKurbelKamera\nresolution: {} x {}'.format(datetime.now(), WIDTH,HEIGHT))
 
     # Lock Object for recording, only one recording should take place at once
     rec_lock = Lock()
@@ -165,13 +167,14 @@ if __name__ == '__main__':
 
                 # r
                 elif event.key == pygame.K_r:
-                    Process(target=recordFrames, args=(rec_lock,)).start()
-
+                    RECORDER = Process(target=recordFrames, args=(rec_lock,))
+                    RECORDER.start()
 
                 # p
                 elif event.key == pygame.K_p:
                     command = "sudo halt"
                     subprocess.call(command, shell = True)
+
 
 
 
