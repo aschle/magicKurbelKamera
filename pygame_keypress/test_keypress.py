@@ -4,7 +4,7 @@ import pygame
 
 import picamera
 
-from multiprocessing import Process, Lock
+from multiprocessing import Manager, Process, Lock
 import subprocess
 import os
 import time
@@ -26,7 +26,7 @@ REC_FPS = 50
 
 global REC_TIMESTAMPS
 global FIRST_REC_TIMESTAMP
-REC_TIMESTAMPS = []
+REC_TIMESTAMPS = [0]
 FIRST_REC_TIMESTAMP = -1
 
 
@@ -81,7 +81,10 @@ def show_image(screen, clock, frame):
     # print(frame, 'FPS', int(clock.get_fps()), 'ms', ms_since_start)
 
 
-
+def generateFilenamesForRecording():
+    frame = 0
+    while f < 100:
+        '/var/tmp/rec/%06d.jpg' % (1000 * frame / REC_FPS,)
 
 def recordFrames(lock):
     # prevent processes from queueing up when the rec button is pressed while recording
