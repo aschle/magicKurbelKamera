@@ -10,11 +10,12 @@ import os
 import time
 from datetime import datetime
 
+import RPi.GPIO as GPIO
 
 
 global WIDTH
 global HEIGHT
-WIDTH  = 450
+WIDTH  = 500
 HEIGHT = int(244 * WIDTH / 352)
 
 global RECORDER
@@ -76,8 +77,6 @@ def show_image(screen, clock, frame):
     # setting the max Framerate to 60 Hz according the the display (not sure which function is 'better')
     # clock.tick_busy_loop(60)
     clock.tick(60)
-    ms_since_start = pygame.time.get_ticks()
-
     # print(frame, 'FPS', int(clock.get_fps()), 'ms', ms_since_start)
 
 
@@ -95,6 +94,7 @@ def recordFrames(lock):
     # only one recording
     lock.acquire()
     with open('RECORD_LOCK', 'a'): os.utime('RECORD_LOCK', None)
+    GPIO.output(7,True) # turn on led
 
     # cleanup recording directory
     filelist = [ f for f in os.listdir("/var/tmp/rec/") if f.endswith(".jpg") ]
@@ -125,16 +125,18 @@ def recordFrames(lock):
     print('{} - finished recording'.format(datetime.now()))
 
     # release the lock and delete the lock file
+    GPIO.output(7,False) # turn off led
     os.remove('RECORD_LOCK')
     lock.release()
 
 
 
-def buildGif(folder='/var/tmp/rec', timestamps=REC_TIMESTAMPS):
+def buildVideo(folder='/var/tmp/rec', timestamps=REC_TIMESTAMPS):
     ms_per_frame = 1000/REC_FPS
     timestamps = [int(round(x/ms_per_frame))*(ms_per_frame) for x in timestamps] # rounds each timestamp to closest 20
     print(timestamps)
-    # TODO: implement gif building
+    # TODO:
+    # ffmpeg -framerate 16 -i %04d.jpg -c:v libx264 -pix_fmt yuv420p out.mp4 -v 0
 
 
 
@@ -142,6 +144,10 @@ def buildGif(folder='/var/tmp/rec', timestamps=REC_TIMESTAMPS):
 if __name__ == '__main__':
 
     print('{} - start magicKurbelKamera\nresolution: {} x {}'.format(datetime.now(), WIDTH,HEIGHT))
+
+    # init GPIO
+    GPIO.setmode(GPIO.BOARD)
+    GPIO.setup(7, GPIO.OUT)
 
     # Lock Object for recording, only one recording should take place at once
     rec_lock = Lock()
@@ -197,7 +203,7 @@ if __name__ == '__main__':
 
                 # h
                 elif event.key == pygame.K_h:
-                    buildGif()
+                    buildVideo()
 
                 # r
                 elif event.key == pygame.K_r:
