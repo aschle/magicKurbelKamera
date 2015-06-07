@@ -8,6 +8,7 @@ import os
 import time
 from datetime import datetime
 
+import pyqrcode
 
 
 global WIDTH
@@ -85,9 +86,16 @@ def buildGif(folder='/var/tmp/rec', timestamps=REC_TIMESTAMPS):
     # TODO: implement gif building
 
 
-def showQrCode(url = 'http://google.com'):
-    # TODO: create qr code and show it as a layer above an image
-    pass
+def showQrCode(url = 'http://google.com'):  
+    url = pyqrcode.create(url)
+    url.png('code.png', scale=2)
+
+    image = 'code.png'
+    img = aspect_scale(pygame.image.load(image), (WIDTH,HEIGHT))
+    screen.blit(img,(0,0))
+    pygame.display.update()
+    clock.tick(60)
+    #TODO: sprite anzeigen, bzw. Bild im Hintergrund
 
 
 if __name__ == '__main__':
