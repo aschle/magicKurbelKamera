@@ -90,13 +90,13 @@ def showQrCode(url = 'http://google.com'):
     url = pyqrcode.create(url)
     url.png('code.png', scale=2)
 
-    image = 'code.png'
-    img = aspect_scale(pygame.image.load(image), (WIDTH,HEIGHT))
+    code = 'code.png'
+    img = aspect_scale(pygame.image.load(code), (WIDTH,HEIGHT))
+    bg = pygame.image.load("bg.png")
+    screen.blit(bg,(0,0))
     screen.blit(img,(0,0))
     pygame.display.update()
     clock.tick(60)
-    #TODO: sprite anzeigen, bzw. Bild im Hintergrund
-
 
 if __name__ == '__main__':
 
