@@ -12,10 +12,14 @@ from datetime import datetime
 
 import RPi.GPIO as GPIO
 
+global FOLDER, ALL_FRAMES
+FOLDER = os.path.join('/','var','tmp','frames')
+ALL_FRAMES = all_frames = [os.path.join(FOLDER,f) for f in sorted(os.listdir(FOLDER))]
 
-global WIDTH
-global HEIGHT
-WIDTH  = 500
+# print(len(os.listdir('/var/tmp/frames')))
+
+global WIDTH, HEIGHT
+WIDTH  = 450
 HEIGHT = int(244 * WIDTH / 352)
 
 global RECORDER
@@ -31,8 +35,11 @@ REC_TIMESTAMPS = [0]
 FIRST_REC_TIMESTAMP = -1
 
 
-global STATE
-STATE = 'init'
+def changeFolder(path):
+    print('changeFolder', path)
+    global FOLDER, ALL_FRAMES
+    FOLDER = path
+    ALL_FRAMES = all_frames = [os.path.join(FOLDER,f) for f in sorted(os.listdir(FOLDER))]
 
 
 # not sure alexa stole this code from the internets
@@ -66,7 +73,9 @@ def aspect_scale(img,(bx,by)):
 
 # displays a single frame from the Neubronner Film
 def show_image(screen, clock, frame):
-    image = '/var/tmp/frames/NEUBR_28_%04d.jpg' % (frame,)
+    # print(ALL_FRAMES[frame-1])
+    # image = '/var/tmp/frames/NEUBR_28_%04d.jpg' % (frame,)
+    image = ALL_FRAMES[frame-1]
     img = aspect_scale(pygame.image.load(image), (WIDTH,HEIGHT))
     # img = pygame.image.load(image)
     screen.blit(img,(0,0))
@@ -184,8 +193,8 @@ if __name__ == '__main__':
                     if event.key == pygame.K_LEFT:   frame -= 1
                     elif event.key == pygame.K_RIGHT: frame += 1
 
-                    frame = (frame % 1048)
-                    if frame == 0: frame = 1048
+                    frame = (frame % len(ALL_FRAMES))
+                    if frame == 0: frame = len(ALL_FRAMES)
 
                     show_image(screen, clock, frame)
 
@@ -214,6 +223,15 @@ if __name__ == '__main__':
                 elif event.key == pygame.K_p:
                     command = "sudo halt"
                     subprocess.call(command, shell = True)
+
+
+                elif event.key == pygame.K_f:
+                    print(FOLDER)
+                    if FOLDER == '/var/tmp/rec':
+                        changeFolder('/var/tmp/frames')
+                    else:
+                        changeFolder('/var/tmp/rec')
+
 
 
 
