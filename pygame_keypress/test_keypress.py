@@ -8,9 +8,14 @@ from multiprocessing import Manager, Process, Lock
 import subprocess
 import os
 import time
+import ConfigParser
 from datetime import datetime
 
 import RPi.GPIO as GPIO
+
+import dropbox, pyqrcode
+
+
 
 global FOLDER, ALL_FRAMES
 FOLDER = os.path.join('/','var','tmp','frames')
@@ -22,17 +27,16 @@ global WIDTH, HEIGHT
 WIDTH  = 450
 HEIGHT = int(244 * WIDTH / 352)
 
-global RECORDER
-global REC_DURATION
-global REC_FPS
-REC_DURATION = 10 # seconds
+global RECORDER, REC_DURATION, REC_FPS
+REC_DURATION = 60 # seconds
 REC_FPS = 50
 
 
-global REC_TIMESTAMPS
-global FIRST_REC_TIMESTAMP
+global REC_TIMESTAMPS, FIRST_REC_TIMESTAMP
 REC_TIMESTAMPS = [0]
 FIRST_REC_TIMESTAMP = -1
+
+VIDEO_PATH = '/home/pi/Desktop/recoding.mp4'
 
 
 def changeFolder(path):
@@ -91,8 +95,17 @@ def show_image(screen, clock, frame):
 
 def generateFilenamesForRecording():
     frame = 0
-    while f < 100:
-        '/var/tmp/rec/%06d.jpg' % (1000 * frame / REC_FPS,)
+    timeout = False
+    abort = False
+
+    while not (timeout or abort):
+        timeout = (frame >= (REC_DURATION * REC_FPS))
+        abort = os.path.exists('ABORT_RECORDING')
+        filename = '/var/tmp/rec/%06d.jpg' % (1000 * frame / REC_FPS,)
+        yield filename
+        frame += 1
+
+
 
 def recordFrames(lock):
     # prevent processes from queueing up when the rec button is pressed while recording
@@ -124,11 +137,12 @@ def recordFrames(lock):
     print('{} - start recording'.format(datetime.now()))
 
     camera.capture_sequence(
-        [
-            '/var/tmp/rec/%06d.jpg' % (1000 * frame / REC_FPS,)
-            for frame in range(REC_DURATION * REC_FPS)
-        ],
-        use_video_port=True)
+        # [
+        #     '/var/tmp/rec/%06d.jpg' % (1000 * frame / REC_FPS,)
+        #     for frame in range(REC_DURATION * REC_FPS)
+        # ]
+        generateFilenamesForRecording()
+        ,use_video_port=True)
 
     camera.close() # gracefully shutdown the camera (freeing all resources)
     print('{} - finished recording'.format(datetime.now()))
@@ -136,6 +150,7 @@ def recordFrames(lock):
     # release the lock and delete the lock file
     GPIO.output(7,False) # turn off led
     os.remove('RECORD_LOCK')
+    if os.path.exists('ABORT_RECORDING'): os.remove('ABORT_RECORDING')
     lock.release()
 
 
@@ -145,8 +160,10 @@ def buildVideo(folder='/var/tmp/rec', timestamps=REC_TIMESTAMPS):
 
     timestamps = [int(round(x/ms_per_frame))*(ms_per_frame) for x in timestamps] # rounds each timestamp to closest 20
     timestamps = [os.path.join(folder,'%06d.jpg' % x) for x in timestamps] # create filenames from timestamps
+    print('timestamps', timestamps)
 
     all_recorded_files = [os.path.join(folder,f) for f in sorted(os.listdir(folder))]
+    # print('all_recorded_files', all_recorded_files)
 
     # remove files that does not match the recorded ticks
     outputframes = []
@@ -156,6 +173,7 @@ def buildVideo(folder='/var/tmp/rec', timestamps=REC_TIMESTAMPS):
         else:
             os.remove(f)
     print('recorded {} frames'.format(len(outputframes)))
+    print('outputframes', outputframes)
 
     # rename outputframes
     for i in range(len(outputframes)):
@@ -170,15 +188,52 @@ def buildVideo(folder='/var/tmp/rec', timestamps=REC_TIMESTAMPS):
         '-i',         '%06d.jpg',
         '-c:v',       'libx264',
         '-pix_fmt',   'yuv420p',
-        '/var/tmp/recoding.mp4'])
+        VIDEO_PATH])
 
     # TODO:
     # /usr/local/bin/ffmpeg -framerate 16 -i %04d.jpg -c:v libx264 -pix_fmt yuv420p out.mp4 -v 0
+def uploadOneDropbox():
+    return 'LOL'
 
+def uploadTwoDropbox(app_key, app_secret, app_whatever):
+
+    flow = dropbox.client.DropboxOAuth2FlowNoRedirect(app_key, app_secret)
+    client = dropbox.client.DropboxClient(app_whatever)
+
+    f = open(VIDEO_PATH, 'rb')
+    filename = 'cdmkk_%s.mp4' % (datetime.now().strftime('%Y%m%d_%H%M%S'),)
+    client.put_file(filename, f)
+    response = client.share(filename)
+    return response['url']
+
+
+def showQrCode(url = 'http://google.com'):
+    # creating qrcode from url
+    url = pyqrcode.create(url)
+    url.png('code.png', scale=1) #scale=1 means: 1 little square is 1px
+    code = 'code.png'
+
+    # display qrcode and background image
+    y_offset = 50 #padding-top to have have space for whatever
+    x_offset = (WIDTH-(HEIGHT-y_offset))/2 #centering the qr-code
+    img = aspect_scale(pygame.image.load(code), (WIDTH-y_offset,HEIGHT-y_offset))
+    bg = pygame.image.load('/home/pi/magicKurbelKamera/bg.png')
+    screen.blit(bg,(0,0))
+    screen.blit(img,(x_offset,y_offset))
+    pygame.display.update()
+    clock.tick(60)
 
 
 
 if __name__ == '__main__':
+
+    config = ConfigParser.ConfigParser()
+    config.readfp(open('magic.cfg'))
+
+    app_key = config.get('Dropbox','app_key')
+    app_secret = config.get('Dropbox','app_secret')
+    app_whatever = config.get('Dropbox','app_whatever')
+
 
     print('{} - start magicKurbelKamera\nresolution: {} x {}'.format(datetime.now(), WIDTH,HEIGHT))
 
@@ -207,6 +262,8 @@ if __name__ == '__main__':
 
     # magic ahead
     while mainloop:
+        # global REC_TIMESTAMPS, FIRST_REC_TIMESTAMP
+
         for event in pygame.event.get():
 
             # pygame window closed by user
@@ -229,30 +286,44 @@ if __name__ == '__main__':
                     # count ms since first tick
                     if FIRST_REC_TIMESTAMP == -1:
                         FIRST_REC_TIMESTAMP = pygame.time.get_ticks()
+                        REC_TIMESTAMPS = [0]
                     else:
                         REC_TIMESTAMPS.append(pygame.time.get_ticks() - FIRST_REC_TIMESTAMP)
 
+                    # print('t FIRST_REC_TIMESTAMP', FIRST_REC_TIMESTAMP)
+                    # print('REC_TIMESTAMPS', len(REC_TIMESTAMPS), REC_TIMESTAMPS[0:5])
 
 
                 # escape
                 elif event.key == pygame.K_ESCAPE:
                     mainloop = False # user pressed ESC
 
-                # h
-                elif event.key == pygame.K_h:
-                    buildVideo()
+                # d
+                elif event.key == pygame.K_d:
+                    buildVideo(folder='/var/tmp/rec', timestamps=REC_TIMESTAMPS)
+                    print('{} - Start uploading'.format(datetime.now()))
+                    db_url = uploadTwoDropbox(app_key, app_secret, app_whatever)
+
+                    print('{} - Finished uploading'.format(datetime.now()))
+                    showQrCode(db_url)
+
 
                 # r
                 elif event.key == pygame.K_r:
+                    FIRST_REC_TIMESTAMP = pygame.time.get_ticks()
+                    REC_TIMESTAMPS = []
+
+                    # print('r FIRST_REC_TIMESTAMP', FIRST_REC_TIMESTAMP)
                     RECORDER = Process(target=recordFrames, args=(rec_lock,))
                     RECORDER.start()
 
-                # p
-                elif event.key == pygame.K_p:
-                    command = "sudo halt"
-                    subprocess.call(command, shell = True)
+                elif event.key == pygame.K_s:
+                    print('{} - ABORT_RECORDING'.format(datetime.now()))
+                    with open('ABORT_RECORDING', 'a'): os.utime('ABORT_RECORDING', None)
 
 
+
+                # f for preview of recording
                 elif event.key == pygame.K_f:
                     print(FOLDER)
                     if FOLDER == '/var/tmp/rec':
@@ -260,23 +331,3 @@ if __name__ == '__main__':
                     else:
                         changeFolder('/var/tmp/rec')
 
-
-
-
-
-
-# this stuff is just a reminder what has to be done before starting the magicKurbelKamera
-
-# just once
-# create ramdisk
-
-# sudo mkdir /var/tmp
-# echo "tmpfs /var/tmp tmpfs nodev,nosuid,size=250M 0 0" | sudo tee --append /etc/fstab
-# sudo mount -a
-
-
-# following stuff has to happen before starting the magic
-
-# mkdir /var/tmp/rec
-# mkdir /var/tmp/frames
-# cp /home/pi/Desktop/magicKurbelKamera/video/frames/*.jpg /var/tmp/frames/

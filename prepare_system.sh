@@ -9,6 +9,7 @@
 sudo apt-get -y install python-dev python-pip
 
 
+# libraries
 # dropbox lib
 sudo pip install dropbox
 # qr lib
