@@ -39,7 +39,7 @@ def changeFolder(path):
     print('changeFolder', path)
     global FOLDER, ALL_FRAMES
     FOLDER = path
-    ALL_FRAMES = all_frames = [os.path.join(FOLDER,f) for f in sorted(os.listdir(FOLDER))]
+    ALL_FRAMES = [os.path.join(FOLDER,f) for f in sorted(os.listdir(FOLDER))]
 
 
 # not sure alexa stole this code from the internets
@@ -142,10 +142,38 @@ def recordFrames(lock):
 
 def buildVideo(folder='/var/tmp/rec', timestamps=REC_TIMESTAMPS):
     ms_per_frame = 1000/REC_FPS
+
     timestamps = [int(round(x/ms_per_frame))*(ms_per_frame) for x in timestamps] # rounds each timestamp to closest 20
-    print(timestamps)
+    timestamps = [os.path.join(folder,'%06d.jpg' % x) for x in timestamps] # create filenames from timestamps
+
+    all_recorded_files = [os.path.join(folder,f) for f in sorted(os.listdir(folder))]
+
+    # remove files that does not match the recorded ticks
+    outputframes = []
+    for f in all_recorded_files:
+        if f in timestamps:
+            outputframes.append(f)
+        else:
+            os.remove(f)
+    print('recorded {} frames'.format(len(outputframes)))
+
+    # rename outputframes
+    for i in range(len(outputframes)):
+        os.rename(outputframes[i], ('/var/tmp/rec/%06d.jpg'%(i+1)))
+
+    # create mp4
+    os.chdir('/var/tmp/rec/')
+    subprocess.call([
+        '/usr/local/bin/ffmpeg',
+        '-y',
+        '-framerate', '16',
+        '-i',         '%06d.jpg',
+        '-c:v',       'libx264',
+        '-pix_fmt',   'yuv420p',
+        '/var/tmp/recoding.mp4'])
+
     # TODO:
-    # ffmpeg -framerate 16 -i %04d.jpg -c:v libx264 -pix_fmt yuv420p out.mp4 -v 0
+    # /usr/local/bin/ffmpeg -framerate 16 -i %04d.jpg -c:v libx264 -pix_fmt yuv420p out.mp4 -v 0
 
 
 
