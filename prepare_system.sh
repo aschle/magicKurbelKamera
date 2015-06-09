@@ -6,16 +6,14 @@
 
 
 # install pip
-sudo apt-get -y install python-pip
+sudo apt-get -y install python-dev python-pip
 
 
-# dropbox lib for python
-sudo apt-get -y install python-dev
+# dropbox lib
 sudo pip install dropbox
-
-
 # qr lib
 sudo pip install pyqrcode pypng
+
 
 # create ramdisk
 sudo mkdir /var/tmp
