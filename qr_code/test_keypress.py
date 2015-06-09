@@ -86,15 +86,19 @@ def buildGif(folder='/var/tmp/rec', timestamps=REC_TIMESTAMPS):
     # TODO: implement gif building
 
 
-def showQrCode(url = 'http://google.com'):  
+def showQrCode(url = 'http://google.com'):
+    # creating qrcode from url
     url = pyqrcode.create(url)
-    url.png('code.png', scale=2)
-
+    url.png('code.png', scale=1) #scale=1 means: 1 little square is 1px
     code = 'code.png'
-    img = aspect_scale(pygame.image.load(code), (WIDTH,HEIGHT))
+
+    # display qrcode and background image
+    y_offset = 50 #padding-top to have have space for whatever
+    x_offset = (WIDTH-(HEIGHT-y_offset))/2 #centering the qr-code
+    img = aspect_scale(pygame.image.load(code), (WIDTH-y_offset,HEIGHT-y_offset))
     bg = pygame.image.load("bg.png")
     screen.blit(bg,(0,0))
-    screen.blit(img,(0,0))
+    screen.blit(img,(x_offset,y_offset))
     pygame.display.update()
     clock.tick(60)
 
