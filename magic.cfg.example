@@ -5,3 +5,5 @@ app_whatever = ***
 
 [Screen]
 fullscreen = false
+camera = false
+gpio = false

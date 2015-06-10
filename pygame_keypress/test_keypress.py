@@ -2,10 +2,6 @@
 
 import pygame
 
-import picamera
-import RPi.GPIO as GPIO
-
-
 import os, subprocess, time, ConfigParser
 import dropbox, pyqrcode
 
@@ -13,6 +9,28 @@ from multiprocessing import Manager, Process, Lock
 from datetime import datetime
 
 
+config = ConfigParser.ConfigParser()
+config.readfp(open('magic.cfg'))
+
+app_key = config.get('Dropbox','app_key')
+app_secret = config.get('Dropbox','app_secret')
+app_whatever = config.get('Dropbox','app_whatever')
+
+fullscreen = config.getboolean('System','fullscreen')
+
+
+# only on raspi
+if config.getboolean('System','camera'):
+    import picamera
+if config.getboolean('System','gpio'):
+    import RPi.GPIO as GPIO
+    # init GPIO
+    GPIO.setmode(GPIO.BOARD)
+    GPIO.setup(7, GPIO.OUT)
+
+
+
+# global variables -- needs to be cleaned up (global is bad)
 
 global FOLDER, ALL_FRAMES
 FOLDER = os.path.join('/','var','tmp','frames')
@@ -113,7 +131,9 @@ def recordFrames(lock):
     # only one recording
     lock.acquire()
     with open('RECORD_LOCK', 'a'): os.utime('RECORD_LOCK', None)
-    GPIO.output(7,True) # turn on led
+
+    if config.getboolean('System','gpio'):
+        GPIO.output(7,True) # turn on led
 
     # cleanup recording directory
     filelist = [ f for f in os.listdir("/var/tmp/rec/") if f.endswith(".jpg") ]
@@ -145,7 +165,8 @@ def recordFrames(lock):
     print('{} - finished recording'.format(datetime.now()))
 
     # release the lock and delete the lock file
-    GPIO.output(7,False) # turn off led
+    if config.getboolean('System','gpio'):
+        GPIO.output(7,False) # turn off led
     os.remove('RECORD_LOCK')
     if os.path.exists('ABORT_RECORDING'): os.remove('ABORT_RECORDING')
     lock.release()
@@ -157,7 +178,6 @@ def buildVideo(folder='/var/tmp/rec', timestamps=REC_TIMESTAMPS):
 
     timestamps = [int(round(x/ms_per_frame))*(ms_per_frame) for x in timestamps] # rounds each timestamp to closest 20
     timestamps = [os.path.join(folder,'%06d.jpg' % x) for x in timestamps] # create filenames from timestamps
-    print('timestamps', timestamps)
 
     all_recorded_files = [os.path.join(folder,f) for f in sorted(os.listdir(folder))]
     # print('all_recorded_files', all_recorded_files)
@@ -169,8 +189,6 @@ def buildVideo(folder='/var/tmp/rec', timestamps=REC_TIMESTAMPS):
             outputframes.append(f)
         else:
             os.remove(f)
-    print('recorded {} frames'.format(len(outputframes)))
-    print('outputframes', outputframes)
 
     # rename outputframes
     for i in range(len(outputframes)):
@@ -224,21 +242,8 @@ def showQrCode(url = 'http://google.com'):
 
 if __name__ == '__main__':
 
-    config = ConfigParser.ConfigParser()
-    config.readfp(open('magic.cfg'))
-
-    app_key = config.get('Dropbox','app_key')
-    app_secret = config.get('Dropbox','app_secret')
-    app_whatever = config.get('Dropbox','app_whatever')
-
-    fullscreen = config.getboolean('Screen','fullscreen')
-
-
     print('{} - start magicKurbelKamera\nresolution: {} x {}'.format(datetime.now(), WIDTH,HEIGHT))
 
-    # init GPIO
-    GPIO.setmode(GPIO.BOARD)
-    GPIO.setup(7, GPIO.OUT)
 
     # Lock Object for recording, only one recording should take place at once
     rec_lock = Lock()
@@ -322,7 +327,7 @@ if __name__ == '__main__':
 
 
                 # r
-                elif event.key == pygame.K_r:
+                elif config.getboolean('System','camera') and event.key == pygame.K_r:
                     FIRST_REC_TIMESTAMP = pygame.time.get_ticks()
                     REC_TIMESTAMPS = []
 
