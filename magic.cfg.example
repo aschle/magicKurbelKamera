@@ -2,3 +2,6 @@
 app_key = ***
 app_secret = ***
 app_whatever = ***
+
+[Screen]
+fullscreen = false

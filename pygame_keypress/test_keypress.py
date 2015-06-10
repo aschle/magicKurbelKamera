@@ -3,17 +3,14 @@
 import pygame
 
 import picamera
-
-from multiprocessing import Manager, Process, Lock
-import subprocess
-import os
-import time
-import ConfigParser
-from datetime import datetime
-
 import RPi.GPIO as GPIO
 
+
+import os, subprocess, time, ConfigParser
 import dropbox, pyqrcode
+
+from multiprocessing import Manager, Process, Lock
+from datetime import datetime
 
 
 
@@ -210,16 +207,16 @@ def uploadTwoDropbox(app_key, app_secret, app_whatever):
 def showQrCode(url = 'http://google.com'):
     # creating qrcode from url
     url = pyqrcode.create(url)
-    url.png('code.png', scale=1) #scale=1 means: 1 little square is 1px
-    code = 'code.png'
+    url.png('/home/pi/magicKurbelKamera/code.png', scale=1) #scale=1 means: 1 little square is 1px
+    code = '/home/pi/magicKurbelKamera/code.png'
 
     # display qrcode and background image
-    y_offset = 50 #padding-top to have have space for whatever
-    x_offset = (WIDTH-(HEIGHT-y_offset))/2 #centering the qr-code
-    img = aspect_scale(pygame.image.load(code), (WIDTH-y_offset,HEIGHT-y_offset))
+    # y_offset = 50 #padding-top to have have space for whatever
+    # x_offset = (WIDTH-(HEIGHT-y_offset))/2 #centering the qr-code
+    img = aspect_scale(pygame.image.load(code), (111,111))
     bg = pygame.image.load('/home/pi/magicKurbelKamera/bg.png')
     screen.blit(bg,(0,0))
-    screen.blit(img,(x_offset,y_offset))
+    screen.blit(img,(310,163))
     pygame.display.update()
     clock.tick(60)
 
@@ -233,6 +230,8 @@ if __name__ == '__main__':
     app_key = config.get('Dropbox','app_key')
     app_secret = config.get('Dropbox','app_secret')
     app_whatever = config.get('Dropbox','app_whatever')
+
+    fullscreen = config.getboolean('Screen','fullscreen')
 
 
     print('{} - start magicKurbelKamera\nresolution: {} x {}'.format(datetime.now(), WIDTH,HEIGHT))
@@ -251,11 +250,20 @@ if __name__ == '__main__':
     pygame.init()
     clock = pygame.time.Clock()
     pygame.display.set_caption('MagicKurbelKamera') # set a window title
-    screen = pygame.display.set_mode((WIDTH,HEIGHT)) # pygame.FULLSCREEN  352,244
+    if fullscreen: screen = pygame.display.set_mode((WIDTH,HEIGHT), pygame.FULLSCREEN)
+    else:          screen = pygame.display.set_mode((WIDTH,HEIGHT))
+
     background = pygame.Surface(screen.get_size()) # dunno
     background.fill((255,255,255)) # black background
     background = background.convert() # dunno
     # end of pygame setup
+
+    # show init screen
+    bg = pygame.image.load('/home/pi/magicKurbelKamera/initial.png')
+    screen.blit(bg,(0,0))
+    pygame.display.update()
+    clock.tick(60)
+
 
     frame = 1
     mainloop = True
@@ -300,6 +308,11 @@ if __name__ == '__main__':
 
                 # d
                 elif event.key == pygame.K_d:
+
+                    bg = pygame.image.load('/home/pi/magicKurbelKamera/development.png')
+                    screen.blit(bg,(0,0))
+                    pygame.display.update()
+
                     buildVideo(folder='/var/tmp/rec', timestamps=REC_TIMESTAMPS)
                     print('{} - Start uploading'.format(datetime.now()))
                     db_url = uploadTwoDropbox(app_key, app_secret, app_whatever)
@@ -330,4 +343,3 @@ if __name__ == '__main__':
                         changeFolder('/var/tmp/frames')
                     else:
                         changeFolder('/var/tmp/rec')
-
