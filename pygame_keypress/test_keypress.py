@@ -51,7 +51,6 @@ global REC_TIMESTAMPS, FIRST_REC_TIMESTAMP
 REC_TIMESTAMPS = [0]
 FIRST_REC_TIMESTAMP = -1
 
-VIDEO_PATH = '/home/pi/Desktop/recoding.mp4'
 
 
 def changeFolder(path):
@@ -122,11 +121,12 @@ def generateFilenamesForRecording():
 
 
 
-def recordFrames(lock):
+def recordFrames(lock, ns):
     # prevent processes from queueing up when the rec button is pressed while recording
     if os.path.exists('RECORD_LOCK'):
         print('{} - I\'m sorry Dave, I\'m afraid I can\'t start another recording…'.format(datetime.now()))
         return
+    print(ns)
 
     # only one recording
     lock.acquire()
@@ -173,14 +173,13 @@ def recordFrames(lock):
 
 
 
-def buildVideo(folder='/var/tmp/rec', timestamps=REC_TIMESTAMPS):
+def buildVideo(folder, video_path, timestamps=REC_TIMESTAMPS):
     ms_per_frame = 1000/REC_FPS
 
     timestamps = [int(round(x/ms_per_frame))*(ms_per_frame) for x in timestamps] # rounds each timestamp to closest 20
     timestamps = [os.path.join(folder,'%06d.jpg' % x) for x in timestamps] # create filenames from timestamps
 
     all_recorded_files = [os.path.join(folder,f) for f in sorted(os.listdir(folder))]
-    # print('all_recorded_files', all_recorded_files)
 
     # remove files that does not match the recorded ticks
     outputframes = []
@@ -192,7 +191,7 @@ def buildVideo(folder='/var/tmp/rec', timestamps=REC_TIMESTAMPS):
 
     # rename outputframes
     for i in range(len(outputframes)):
-        os.rename(outputframes[i], ('/var/tmp/rec/%06d.jpg'%(i+1)))
+        os.rename(outputframes[i], (os.path.join(folder,'%06d.jpg'%(i+1))))
 
     # create mp4
     os.chdir('/var/tmp/rec/')
@@ -203,36 +202,30 @@ def buildVideo(folder='/var/tmp/rec', timestamps=REC_TIMESTAMPS):
         '-i',         '%06d.jpg',
         '-c:v',       'libx264',
         '-pix_fmt',   'yuv420p',
-        VIDEO_PATH])
+        video_path])
 
-    # TODO:
-    # /usr/local/bin/ffmpeg -framerate 16 -i %04d.jpg -c:v libx264 -pix_fmt yuv420p out.mp4 -v 0
-def uploadOneDropbox():
-    return 'LOL'
 
-def uploadTwoDropbox(app_key, app_secret, app_whatever):
+def uploadToDropbox(local_path, app_key, app_secret, app_whatever):
 
     flow = dropbox.client.DropboxOAuth2FlowNoRedirect(app_key, app_secret)
     client = dropbox.client.DropboxClient(app_whatever)
 
-    f = open(VIDEO_PATH, 'rb')
-    filename = 'cdmkk_%s.mp4' % (datetime.now().strftime('%Y%m%d_%H%M%S'),)
+    f = open(local_path, 'rb')
+    filename = 'videos/cdmkk_%s.mp4' % (datetime.now().strftime('%Y%m%d_%H%M%S'),)
     client.put_file(filename, f)
     response = client.share(filename)
     return response['url']
 
 
-def showQrCode(url = 'http://google.com'):
+def showQrCode(url, ns):
     # creating qrcode from url
     url = pyqrcode.create(url)
-    url.png('/home/pi/magicKurbelKamera/code.png', scale=1) #scale=1 means: 1 little square is 1px
-    code = '/home/pi/magicKurbelKamera/code.png'
+    qr_code_path = os.path.join(ns.root_folder,'pics','code.png')
+    url.png(qr_code_path, scale=1) #scale=1 means: 1 little square is 1px
 
     # display qrcode and background image
-    # y_offset = 50 #padding-top to have have space for whatever
-    # x_offset = (WIDTH-(HEIGHT-y_offset))/2 #centering the qr-code
-    img = aspect_scale(pygame.image.load(code), (111,111))
-    bg = pygame.image.load('/home/pi/magicKurbelKamera/bg.png')
+    img = aspect_scale(pygame.image.load(qr_code_path), (111,111))
+    bg = pygame.image.load(os.path.join(ns.root_folder,'pics','bg.png'))
     screen.blit(bg,(0,0))
     screen.blit(img,(310,163))
     pygame.display.update()
@@ -244,11 +237,16 @@ if __name__ == '__main__':
 
     print('{} - start magicKurbelKamera\nresolution: {} x {}'.format(datetime.now(), WIDTH,HEIGHT))
 
+    manager = Manager()
+    ns = manager.Namespace()
+
+    ns.root_folder = config.get('System','root_folder')
 
     # Lock Object for recording, only one recording should take place at once
     rec_lock = Lock()
     # remove an old lock-file (debris from a crash)
     if os.path.exists('RECORD_LOCK'): os.remove('RECORD_LOCK')
+    if os.path.exists('ABORT_RECORDING'): os.remove('ABORT_RECORDING')
 
 
     # pygame setup
@@ -264,7 +262,7 @@ if __name__ == '__main__':
     # end of pygame setup
 
     # show init screen
-    bg = pygame.image.load('/home/pi/magicKurbelKamera/initial.png')
+    bg = pygame.image.load(os.path.join(ns.root_folder,'pics','initial.png'))
     screen.blit(bg,(0,0))
     pygame.display.update()
     clock.tick(60)
@@ -303,9 +301,6 @@ if __name__ == '__main__':
                     else:
                         REC_TIMESTAMPS.append(pygame.time.get_ticks() - FIRST_REC_TIMESTAMP)
 
-                    # print('t FIRST_REC_TIMESTAMP', FIRST_REC_TIMESTAMP)
-                    # print('REC_TIMESTAMPS', len(REC_TIMESTAMPS), REC_TIMESTAMPS[0:5])
-
 
                 # escape
                 elif event.key == pygame.K_ESCAPE:
@@ -314,16 +309,16 @@ if __name__ == '__main__':
                 # d
                 elif event.key == pygame.K_d:
 
-                    bg = pygame.image.load('/home/pi/magicKurbelKamera/development.png')
+                    bg = pygame.image.load(os.path.join(ns.root_folder,'pics','development.png'))
                     screen.blit(bg,(0,0))
                     pygame.display.update()
 
-                    buildVideo(folder='/var/tmp/rec', timestamps=REC_TIMESTAMPS)
+                    buildVideo('/var/tmp/rec', config.get('System','video_path'), timestamps=REC_TIMESTAMPS)
                     print('{} - Start uploading'.format(datetime.now()))
-                    db_url = uploadTwoDropbox(app_key, app_secret, app_whatever)
+                    db_url = uploadToDropbox(config.get('System','video_path'), app_key, app_secret, app_whatever)
 
                     print('{} - Finished uploading'.format(datetime.now()))
-                    showQrCode(db_url)
+                    showQrCode(db_url, ns)
 
 
                 # r
@@ -332,7 +327,7 @@ if __name__ == '__main__':
                     REC_TIMESTAMPS = []
 
                     # print('r FIRST_REC_TIMESTAMP', FIRST_REC_TIMESTAMP)
-                    RECORDER = Process(target=recordFrames, args=(rec_lock,))
+                    RECORDER = Process(target=recordFrames, args=(rec_lock,ns,))
                     RECORDER.start()
 
                 elif event.key == pygame.K_s:
