@@ -72,9 +72,8 @@ if __name__ == '__main__':
 
     # Lock Object for recording, only one recording should take place at once
     rec_lock = Lock()
+    recording_flag = Event()
     stop_recording_event = Event()
-    # remove an old lock-file (debris from a crash)
-    if os.path.exists('RECORD_LOCK'): os.remove('RECORD_LOCK')
 
 
     # pygame setup
@@ -139,16 +138,13 @@ if __name__ == '__main__':
                         clearRecFolder(REC_PATH, rec_timestamps, REC_FPS)
 
 
-
-
-
                 # escape
                 elif event.key == pygame.K_ESCAPE:
                     mainloop = False # user pressed ESC
 
+
                 # d
                 elif event.key == pygame.K_d:
-
                     # show development screen
                     bg = pygame.image.load(os.path.join(ROOT_PATH,'img','development.png'))
                     screen.blit(bg,(0,0))
@@ -179,14 +175,17 @@ if __name__ == '__main__':
                     # print('r FIRST_REC_TIMESTAMP', FIRST_REC_TIMESTAMP)
                     recorder = Process(target=recordFrames,
                                        args=(rec_lock,
+                                             recording_flag,
                                              WIDTH, HEIGHT,
                                              REC_DURATION,
                                              REC_FPS,
                                              stop_recording_event))
                     recorder.start()
 
+
                 elif event.key == pygame.K_e:
                     pass
+
 
                 elif event.key == pygame.K_s:
                     stop_recording_event.set()

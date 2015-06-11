@@ -33,15 +33,15 @@ def generateFilenamesForRecording(rec_duration, rec_fps, stop_recording_event):
         frame += 1
 
 
-def recordFrames(lock, width, height, rec_duration, rec_fps, stop_recording_event):
+def recordFrames(lock, recording_flag, width, height, rec_duration, rec_fps, stop_recording_event):
     # prevent processes from queueing up when the rec button is pressed while recording
-    if os.path.exists('RECORD_LOCK'):
+    if recording_flag.is_set():
         print('{} - I\'m sorry Dave, I\'m afraid I can\'t start another recording…'.format(datetime.now()))
         return
 
     # only one recording
     lock.acquire()
-    with open('RECORD_LOCK', 'a'): os.utime('RECORD_LOCK', None)
+    recording_flag.set()
 
     if GPIO_ACTIVE: GPIO.output(7,True) # turn on led
 
@@ -73,7 +73,7 @@ def recordFrames(lock, width, height, rec_duration, rec_fps, stop_recording_even
     # release the lock and delete the lock file
     if GPIO_ACTIVE: GPIO.output(7,False) # turn off led
 
-    if os.path.exists('RECORD_LOCK'): os.remove('RECORD_LOCK')
-    stop_recording_event.clear()
+    recording_flag.clear()
     lock.release()
+
 
