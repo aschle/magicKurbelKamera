@@ -13,13 +13,14 @@ import ConfigParser
 config = ConfigParser.ConfigParser()
 config.readfp(open('config.cfg'))
 
+
 GPIO_ACTIVE = config.getboolean('System','gpio')
 
 if GPIO_ACTIVE:
     import RPi.GPIO as GPIO
     GPIO.setmode(GPIO.BOARD)
 
-    GPIO.setup(13, GPIO.OUT) -- Relais
+    GPIO.setup(13, GPIO.OUT)
     GPIO.output(13, GPIO.HIGH)
 
     # GPIO.setup(15, GPIO.OUT)
@@ -38,16 +39,17 @@ if GPIO_ACTIVE:
     # GPIO.output(35, GPIO.HIGH)
 
 
-
-
 from post_production import clearRecFolder, buildVideo, uploadToDropbox as upload, generateQrCode
 from recorder import recordFrames
 
+
 play_status_movie = True
+
 frame = 1
 stop_recording_event = Event()
 rec_timestamps = [0]
 first_rec_timestamp = -1
+
 
 def postproduction(stop_recording_event, rec_timeout_flag, rec_truly_started_event, postproduction_flag, postproduction_finished_flag):
     stop_recording_event.set()
@@ -78,6 +80,7 @@ def changeVideo(path):
     movie.play()
 
     return movie, movie_screen
+
 
 # not sure alexa stole this code from the internets
 def scale(img,(bx,by)):
@@ -132,8 +135,10 @@ if __name__ == '__main__':
     REC_DURATION = config.getint('Recorder','rec_duration') # seconds
     REC_FPS = config.getint('Recorder','rec_fps')
 
+
     CLOCK_X = config.getint('Screen','clock_x')
     CLOCK_Y = config.getint('Screen','clock_y')
+
 
     rec_timestamps = [0]
     first_rec_timestamp = -1
@@ -152,6 +157,7 @@ if __name__ == '__main__':
 
     postproduction_flag = Event()
     postproduction_finished_flag = Event()
+
 
     # Playing movie state
     play_status_movie = True
@@ -375,5 +381,3 @@ if __name__ == '__main__':
 
     if GPIO_ACTIVE: 
         GPIO.cleanup()
-
-
