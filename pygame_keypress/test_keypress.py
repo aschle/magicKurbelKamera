@@ -143,50 +143,48 @@ if __name__ == '__main__':
                     mainloop = False # user pressed ESC
 
 
-                # d
-                elif event.key == pygame.K_d:
-                    # show development screen
-                    bg = pygame.image.load(os.path.join(ROOT_PATH,'img','development.png'))
-                    screen.blit(bg,(0,0))
-                    pygame.display.update()
-
-                    print('{} - Start building video'.format(datetime.now()))
-                    buildVideo(RECORD_PATH, VIDEO_PATH, rec_timestamps, REC_FPS)
-                    print('{} - Finished building video'.format(datetime.now()))
-                    print('{} - Start uploading'.format(datetime.now()))
-                    url = upload(VIDEO_PATH)
-                    print('{} - Finished uploading'.format(datetime.now()))
-
-                    # generate qrcode and display it on background image
-                    qr_code_path = generateQrCode(url, os.path.join(ROOT_PATH,'img') )
-                    bg = pygame.image.load(os.path.join(ROOT_PATH,'img','bg.png'))
-                    screen.blit(bg,(0,0))
-                    img = scale(pygame.image.load(qr_code_path), (111,111))
-                    screen.blit(img,(310,163))
-                    pygame.display.update()
-                    clock.tick(60)
-
-
                 # r
                 elif config.getboolean('System','camera') and event.key == pygame.K_r:
-                    first_rec_timestamp = pygame.time.get_ticks()
-                    rec_timestamps = []
+                    if not recording_flag.is_set():
 
-                    # print('r FIRST_REC_TIMESTAMP', FIRST_REC_TIMESTAMP)
-                    recorder = Process(target=recordFrames,
-                                       args=(rec_lock,
-                                             recording_flag,
-                                             WIDTH, HEIGHT,
-                                             REC_DURATION,
-                                             REC_FPS,
-                                             stop_recording_event))
-                    recorder.start()
+                        first_rec_timestamp = pygame.time.get_ticks()
+                        rec_timestamps = []
+
+                        # print('r FIRST_REC_TIMESTAMP', FIRST_REC_TIMESTAMP)
+                        recorder = Process(target=recordFrames,
+                                           args=(rec_lock,
+                                                 recording_flag,
+                                                 WIDTH, HEIGHT,
+                                                 REC_DURATION,
+                                                 REC_FPS,
+                                                 stop_recording_event))
+                        recorder.start()
+                    else:
+                        stop_recording_event.set()
+
+                        # show development screen
+                        bg = pygame.image.load(os.path.join(ROOT_PATH,'img','development.png'))
+                        screen.blit(bg,(0,0))
+                        pygame.display.update()
+
+                        print('{} - Start building video'.format(datetime.now()))
+                        buildVideo(RECORD_PATH, VIDEO_PATH, rec_timestamps, REC_FPS)
+                        print('{} - Finished building video'.format(datetime.now()))
+                        print('{} - Start uploading'.format(datetime.now()))
+                        url = upload(VIDEO_PATH)
+                        print('{} - Finished uploading'.format(datetime.now()))
+
+                        # generate qrcode and display it on background image
+                        qr_code_path = generateQrCode(url, os.path.join(ROOT_PATH,'img') )
+                        bg = pygame.image.load(os.path.join(ROOT_PATH,'img','bg.png'))
+                        screen.blit(bg,(0,0))
+                        img = scale(pygame.image.load(qr_code_path), (111,111))
+                        screen.blit(img,(310,163))
+                        pygame.display.update()
+                        clock.tick(60)
+
 
 
                 elif event.key == pygame.K_e:
                     pass
-
-
-                elif event.key == pygame.K_s:
-                    stop_recording_event.set()
 
