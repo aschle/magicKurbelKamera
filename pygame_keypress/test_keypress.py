@@ -5,7 +5,7 @@ import pygame
 import os
 import time
 
-from multiprocessing import Process, Lock
+from multiprocessing import Process, Lock, Event
 from datetime import datetime
 
 
@@ -18,7 +18,7 @@ from post_production import buildVideo, uploadToDropbox as upload, generateQrCod
 from recorder import recordFrames
 
 # not sure alexa stole this code from the internets
-def aspect_scale(img,(bx,by)):
+def scale(img,(bx,by)):
     """ Scales 'img' to fit into box bx/by.
      This method will retain the original image's aspect ratio """
     ix,iy = img.get_size()
@@ -46,23 +46,6 @@ def aspect_scale(img,(bx,by)):
     return pygame.transform.scale(img, (int(sx),int(sy)))
 
 
-# displays a single frame from the Neubronner Film
-def show_image(screen, clock, frames, frame, width, height):
-    image = frames[frame-1]
-    img = aspect_scale(pygame.image.load(image), (width,height))
-    # img = pygame.image.load(image)
-    screen.blit(img,(0,0))
-
-    # pygame.display.flip()
-    pygame.display.update()
-
-    # setting the max Framerate to 60 Hz according the the display (not sure which function is 'better')
-    # clock.tick_busy_loop(60)
-    clock.tick(60)
-    # print(frame, 'FPS', int(clock.get_fps()), 'ms', ms_since_start)
-
-
-
 if __name__ == '__main__':
 
     WIDTH  = config.getint('Screen','width')
@@ -76,7 +59,6 @@ if __name__ == '__main__':
     FRAMES_PATH = config.get('System','frames_folder')
     ALL_FRAMES = all_frames = [os.path.join(FRAMES_PATH,f) for f in sorted(os.listdir(FRAMES_PATH))]
 
-
     REC_DURATION = config.getint('Recorder','rec_duration') # seconds
     REC_FPS = config.getint('Recorder','rec_fps')
 
@@ -89,9 +71,9 @@ if __name__ == '__main__':
 
     # Lock Object for recording, only one recording should take place at once
     rec_lock = Lock()
+    stop_recording_event = Event()
     # remove an old lock-file (debris from a crash)
     if os.path.exists('RECORD_LOCK'): os.remove('RECORD_LOCK')
-    if os.path.exists('ABORT_RECORDING'): os.remove('ABORT_RECORDING')
 
 
     # pygame setup
@@ -137,7 +119,12 @@ if __name__ == '__main__':
                     frame = (frame % len(ALL_FRAMES))
                     if frame == 0: frame = len(ALL_FRAMES)
 
-                    show_image(screen, clock, ALL_FRAMES, frame, WIDTH, HEIGHT)
+                    image = ALL_FRAMES[frame - 1]
+                    img = scale(pygame.image.load(image), (WIDTH,HEIGHT))
+                    screen.blit(img,(0,0))
+                    pygame.display.update() # pygame.display.flip()
+                    clock.tick(60)
+
 
                     # count ms since first tick
                     if first_rec_timestamp == -1:
@@ -170,7 +157,7 @@ if __name__ == '__main__':
                     qr_code_path = generateQrCode(url, os.path.join(ROOT_PATH,'img') )
                     bg = pygame.image.load(os.path.join(ROOT_PATH,'img','bg.png'))
                     screen.blit(bg,(0,0))
-                    img = aspect_scale(pygame.image.load(qr_code_path), (111,111))
+                    img = scale(pygame.image.load(qr_code_path), (111,111))
                     screen.blit(img,(310,163))
                     pygame.display.update()
                     clock.tick(60)
@@ -182,10 +169,17 @@ if __name__ == '__main__':
                     rec_timestamps = []
 
                     # print('r FIRST_REC_TIMESTAMP', FIRST_REC_TIMESTAMP)
-                    RECORDER = Process(target=recordFrames, args=(rec_lock,WIDTH,HEIGHT,REC_DURATION,REC_FPS))
-                    RECORDER.start()
+                    recorder = Process(target=recordFrames,
+                                       args=(rec_lock,
+                                             WIDTH, HEIGHT,
+                                             REC_DURATION,
+                                             REC_FPS,
+                                             stop_recording_event))
+                    recorder.start()
+
+                elif event.key == pygame.K_e:
+                    pass
 
                 elif event.key == pygame.K_s:
-                    print('{} - ABORT_RECORDING'.format(datetime.now()))
-                    with open('ABORT_RECORDING', 'a'): os.utime('ABORT_RECORDING', None)
+                    stop_recording_event.set()
 
