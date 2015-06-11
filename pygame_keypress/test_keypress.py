@@ -14,7 +14,7 @@ config = ConfigParser.ConfigParser()
 config.readfp(open('magic.cfg'))
 
 
-from post_production import buildVideo, uploadToDropbox as upload, generateQrCode
+from post_production import clearRecFolder, buildVideo, uploadToDropbox as upload, generateQrCode
 from recorder import recordFrames
 
 # not sure alexa stole this code from the internets
@@ -59,6 +59,7 @@ if __name__ == '__main__':
     FRAMES_PATH = config.get('System','frames_folder')
     ALL_FRAMES = all_frames = [os.path.join(FRAMES_PATH,f) for f in sorted(os.listdir(FRAMES_PATH))]
 
+    REC_PATH = config.get('System','rec_folder')
     REC_DURATION = config.getint('Recorder','rec_duration') # seconds
     REC_FPS = config.getint('Recorder','rec_fps')
 
@@ -96,6 +97,7 @@ if __name__ == '__main__':
 
 
     frame = 1
+    ticks = 0
     mainloop = True
 
     # magic ahead
@@ -132,6 +134,12 @@ if __name__ == '__main__':
                         rec_timestamps = [0]
                     else:
                         rec_timestamps.append(pygame.time.get_ticks() - first_rec_timestamp)
+                    ticks += 1
+                    if ticks % 50 == 0:
+                        clearRecFolder(REC_PATH, rec_timestamps, REC_FPS)
+
+
+
 
 
                 # escape

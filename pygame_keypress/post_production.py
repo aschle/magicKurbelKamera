@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import os
 import subprocess
 import dropbox
@@ -19,8 +17,7 @@ APP_TOKEN = config.get('Dropbox','app_token')
 REC_FPS = config.getint('Recorder','rec_fps')
 
 
-
-def buildVideo(folder, video_path, rec_timestamps, rec_fps=REC_FPS):
+def clearRecFolder(folder, rec_timestamps, rec_fps=REC_FPS):
     ms_per_frame = 1000/rec_fps
 
     rec_timestamps = [int(round(x/ms_per_frame))*(ms_per_frame) for x in rec_timestamps] # rounds each timestamp to closest 20
@@ -28,13 +25,27 @@ def buildVideo(folder, video_path, rec_timestamps, rec_fps=REC_FPS):
 
     all_recorded_files = [os.path.join(folder,f) for f in sorted(os.listdir(folder))]
 
-    # remove files that does not match the recorded ticks
-    outputframes = []
+    deleted = 0
     for f in all_recorded_files:
-        if f in rec_timestamps:
-            outputframes.append(f)
-        else:
+        if f not in rec_timestamps:
+            deleted += 1
             os.remove(f)
+    print('deleted', deleted, 'files of', len(all_recorded_files), 'remaining', (len(all_recorded_files) - deleted))
+
+
+
+def buildVideo(folder, video_path, rec_timestamps, rec_fps=REC_FPS):
+    clearRecFolder(folder, rec_timestamps)
+
+    outputframes = [os.path.join(folder,f) for f in sorted(os.listdir(folder))]
+
+    # remove files that does not match the recorded ticks
+    # outputframes = []
+    # for f in all_recorded_files:
+    #     if f in rec_timestamps:
+    #         outputframes.append(f)
+    #     else:
+    #         os.remove(f)
 
     # rename outputframes
     for i in range(len(outputframes)):

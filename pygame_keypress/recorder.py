@@ -73,7 +73,7 @@ def recordFrames(lock, width, height, rec_duration, rec_fps, stop_recording_even
     # release the lock and delete the lock file
     if GPIO_ACTIVE: GPIO.output(7,False) # turn off led
 
-    os.remove('RECORD_LOCK')
+    if os.path.exists('RECORD_LOCK'): os.remove('RECORD_LOCK')
     stop_recording_event.clear()
     lock.release()
 
