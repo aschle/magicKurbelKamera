@@ -75,6 +75,8 @@ if __name__ == '__main__':
     recording_flag = Event()
     stop_recording_event = Event()
 
+    # todo
+    play_movie = True
 
     # pygame setup
     pygame.init()
@@ -89,11 +91,36 @@ if __name__ == '__main__':
     # end of pygame setup
 
     # show init screen
-    bg = pygame.image.load(os.path.join(ROOT_PATH,'img','initial.png'))
-    screen.blit(bg,(0,0))
-    pygame.display.update()
-    clock.tick(60)
+    # bg = pygame.image.load(os.path.join(ROOT_PATH,'img','initial.png'))
+    # screen.blit(bg,(0,0))
+    # pygame.display.update()
+    # clock.tick(60)
 
+    # load init video
+    movie = pygame.movie.Movie(os.path.join(ROOT_PATH,'img','magic.mp4'))
+    movie_screen = pygame.Surface(movie.get_size()).convert()
+    movie.set_display(movie_screen)
+    movie.play()
+
+
+    # playing = True
+    # while playing:
+    #     for event in pygame.event.get():
+    #         if event.type == pygame.QUIT:
+    #             movie.stop()
+    #             playing = False
+    #         elif event.type == pygame.KEYUP:
+    #             if event.key == pygame.K_e:
+    #                 movie.stop()
+    #                 movie.rewind()
+    #                 print('E')
+
+
+
+
+
+
+    # pygame.quit()
 
     frame = 1
     ticks = 0
@@ -102,6 +129,16 @@ if __name__ == '__main__':
     # magic ahead
     while mainloop:
         # global REC_TIMESTAMPS, FIRST_REC_TIMESTAMP
+
+        # display video
+        if play_movie:
+            screen.blit(movie_screen,(0,0))
+            pygame.display.update()
+            clock.tick(60)
+
+            if movie.get_busy() == 0:
+                movie.rewind()
+                movie.play()
 
         for event in pygame.event.get():
 
@@ -186,5 +223,8 @@ if __name__ == '__main__':
 
 
                 elif event.key == pygame.K_e:
-                    pass
+                    play_movie = not play_movie
+                    movie.stop()
+                    movie.rewind()
+
 
