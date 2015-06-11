@@ -1,0 +1,4 @@
+dropbox==2.2.0
+picamera==1.10
+pypng==0.0.17
+PyQRCode==1.1
