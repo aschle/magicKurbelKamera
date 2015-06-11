@@ -2,10 +2,10 @@
 
 import pygame
 
-import os, subprocess, time
-import dropbox, pyqrcode
+import os
+import time
 
-from multiprocessing import Manager, Process, Lock
+from multiprocessing import Process, Lock
 from datetime import datetime
 
 
@@ -13,16 +13,9 @@ import ConfigParser
 config = ConfigParser.ConfigParser()
 config.readfp(open('magic.cfg'))
 
-# only on raspi
-if config.getboolean('System','camera'):
-    import picamera
-if config.getboolean('System','gpio'):
-    import RPi.GPIO as GPIO
-    # init GPIO
-    GPIO.setmode(GPIO.BOARD)
-    GPIO.setup(7, GPIO.OUT)
 
-
+from post_production import buildVideo, uploadToDropbox as upload, generateQrCode
+from recorder import recordFrames
 
 # not sure alexa stole this code from the internets
 def aspect_scale(img,(bx,by)):
@@ -69,127 +62,8 @@ def show_image(screen, clock, frames, frame, width, height):
     # print(frame, 'FPS', int(clock.get_fps()), 'ms', ms_since_start)
 
 
-def generateFilenamesForRecording(rec_duration, rec_fps):
-    frame = 0
-    timeout = False
-    abort = False
-
-    while not (timeout or abort):
-        timeout = (frame >= (rec_duration * rec_fps))
-        abort = os.path.exists('ABORT_RECORDING')
-        filename = '/var/tmp/rec/%06d.jpg' % (1000 * frame / rec_fps,)
-        yield filename
-        frame += 1
-
-
-
-def recordFrames(lock, width, height, rec_duration, rec_fps):
-    # prevent processes from queueing up when the rec button is pressed while recording
-    if os.path.exists('RECORD_LOCK'):
-        print('{} - I\'m sorry Dave, I\'m afraid I can\'t start another recording…'.format(datetime.now()))
-        return
-
-    # only one recording
-    lock.acquire()
-    with open('RECORD_LOCK', 'a'): os.utime('RECORD_LOCK', None)
-
-    if config.getboolean('System','gpio'):
-        GPIO.output(7,True) # turn on led
-
-    # cleanup recording directory
-    filelist = [ f for f in os.listdir("/var/tmp/rec/") if f.endswith(".jpg") ]
-    for f in filelist:
-        os.remove('/var/tmp/rec/' + f)
-
-    print('{} - record button pressed'.format(datetime.now()))
-
-    # instantiate a camera object
-    camera = picamera.PiCamera()
-    # setting the camera up
-    camera.resolution = (width,height)
-    camera.framerate = rec_fps
-    camera.hflip = True
-    camera.vflip = True
-
-    # record
-    print('{} - start recording'.format(datetime.now()))
-
-    camera.capture_sequence(
-        generateFilenamesForRecording(rec_duration, rec_fps)
-        ,use_video_port=True)
-
-    camera.close() # gracefully shutdown the camera (freeing all resources)
-    print('{} - finished recording'.format(datetime.now()))
-
-    # release the lock and delete the lock file
-    if config.getboolean('System','gpio'):
-        GPIO.output(7,False) # turn off led
-    os.remove('RECORD_LOCK')
-    if os.path.exists('ABORT_RECORDING'): os.remove('ABORT_RECORDING')
-    lock.release()
-
-
-
-def buildVideo(folder, video_path, rec_timestamps, rec_fps):
-    ms_per_frame = 1000/rec_fps
-
-    rec_timestamps = [int(round(x/ms_per_frame))*(ms_per_frame) for x in rec_timestamps] # rounds each timestamp to closest 20
-    rec_timestamps = [os.path.join(folder,'%06d.jpg' % x) for x in rec_timestamps] # create filenames from timestamps
-
-    all_recorded_files = [os.path.join(folder,f) for f in sorted(os.listdir(folder))]
-
-    # remove files that does not match the recorded ticks
-    outputframes = []
-    for f in all_recorded_files:
-        if f in rec_timestamps:
-            outputframes.append(f)
-        else:
-            os.remove(f)
-
-    # rename outputframes
-    for i in range(len(outputframes)):
-        os.rename(outputframes[i], (os.path.join(folder,'%06d.jpg'%(i+1))))
-
-    # create mp4
-    os.chdir('/var/tmp/rec/')
-    subprocess.call([
-        '/usr/local/bin/ffmpeg',
-        '-y',
-        '-framerate', '16',
-        '-i',         '%06d.jpg',
-        '-c:v',       'libx264',
-        '-pix_fmt',   'yuv420p',
-        video_path])
-
-
-# TODO: implement abstract upload class
-def uploadToDropbox(local_path, app_key, app_secret, app_token):
-
-    flow = dropbox.client.DropboxOAuth2FlowNoRedirect(app_key, app_secret)
-    client = dropbox.client.DropboxClient(app_token)
-
-    f = open(local_path, 'rb')
-    filename = 'videos/cdmkk_%s.mp4' % (datetime.now().strftime('%Y%m%d_%H%M%S'),)
-    client.put_file(filename, f)
-    response = client.share(filename)
-    return response['url']
-
-
-def generateQrCode(url, folder):
-    # creating qrcode from url
-    url = pyqrcode.create(url)
-    qr_code_path = os.path.join(folder,'code.png')
-    url.png(qr_code_path, scale=1) #scale=1 means: 1 little square is 1px
-    return qr_code_path
-
-
 
 if __name__ == '__main__':
-
-
-    APP_KEY = config.get('Dropbox','app_key')
-    APP_SECRET = config.get('Dropbox','app_secret')
-    APP_TOKEN = config.get('Dropbox','app_token')
 
     WIDTH  = config.getint('Screen','width')
     HEIGHT = config.getint('Screen','height')
@@ -212,7 +86,6 @@ if __name__ == '__main__':
 
     print('{} - start magicKurbelKamera\nresolution: {} x {}'.format(datetime.now(), WIDTH,HEIGHT))
 
-    manager = Manager()
 
     # Lock Object for recording, only one recording should take place at once
     rec_lock = Lock()
@@ -290,11 +163,11 @@ if __name__ == '__main__':
                     buildVideo(RECORD_PATH, VIDEO_PATH, rec_timestamps, REC_FPS)
                     print('{} - Finished building video'.format(datetime.now()))
                     print('{} - Start uploading'.format(datetime.now()))
-                    url = uploadToDropbox(VIDEO_PATH, APP_KEY, APP_SECRET, APP_TOKEN)
+                    url = upload(VIDEO_PATH)
                     print('{} - Finished uploading'.format(datetime.now()))
 
                     # generate qrcode and display it on background image
-                    generateQrCode(url, os.path.join(ROOT_PATH,'img') )
+                    qr_code_path = generateQrCode(url, os.path.join(ROOT_PATH,'img') )
                     bg = pygame.image.load(os.path.join(ROOT_PATH,'img','bg.png'))
                     screen.blit(bg,(0,0))
                     img = aspect_scale(pygame.image.load(qr_code_path), (111,111))
