@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+
+
 import os
 import subprocess
 import dropbox
@@ -38,14 +41,6 @@ def buildVideo(folder, video_path, rec_timestamps, rec_fps=REC_FPS):
     clearRecFolder(folder, rec_timestamps)
 
     outputframes = [os.path.join(folder,f) for f in sorted(os.listdir(folder))]
-
-    # remove files that does not match the recorded ticks
-    # outputframes = []
-    # for f in all_recorded_files:
-    #     if f in rec_timestamps:
-    #         outputframes.append(f)
-    #     else:
-    #         os.remove(f)
 
     # rename outputframes
     for i in range(len(outputframes)):
