@@ -2,22 +2,16 @@
 
 import pygame
 
-import os, subprocess, time, ConfigParser
+import os, subprocess, time
 import dropbox, pyqrcode
 
 from multiprocessing import Manager, Process, Lock
 from datetime import datetime
 
 
+import ConfigParser
 config = ConfigParser.ConfigParser()
 config.readfp(open('magic.cfg'))
-
-app_key = config.get('Dropbox','app_key')
-app_secret = config.get('Dropbox','app_secret')
-app_whatever = config.get('Dropbox','app_whatever')
-
-fullscreen = config.getboolean('System','fullscreen')
-
 
 # only on raspi
 if config.getboolean('System','camera'):
@@ -28,36 +22,6 @@ if config.getboolean('System','gpio'):
     GPIO.setmode(GPIO.BOARD)
     GPIO.setup(7, GPIO.OUT)
 
-
-
-# global variables -- needs to be cleaned up (global is bad)
-
-global FOLDER, ALL_FRAMES
-FOLDER = os.path.join('/','var','tmp','frames')
-ALL_FRAMES = all_frames = [os.path.join(FOLDER,f) for f in sorted(os.listdir(FOLDER))]
-
-# print(len(os.listdir('/var/tmp/frames')))
-
-global WIDTH, HEIGHT
-WIDTH  = 450
-HEIGHT = int(244 * WIDTH / 352)
-
-global RECORDER, REC_DURATION, REC_FPS
-REC_DURATION = 60 # seconds
-REC_FPS = 50
-
-
-global REC_TIMESTAMPS, FIRST_REC_TIMESTAMP
-REC_TIMESTAMPS = [0]
-FIRST_REC_TIMESTAMP = -1
-
-
-
-def changeFolder(path):
-    print('changeFolder', path)
-    global FOLDER, ALL_FRAMES
-    FOLDER = path
-    ALL_FRAMES = [os.path.join(FOLDER,f) for f in sorted(os.listdir(FOLDER))]
 
 
 # not sure alexa stole this code from the internets
@@ -90,11 +54,9 @@ def aspect_scale(img,(bx,by)):
 
 
 # displays a single frame from the Neubronner Film
-def show_image(screen, clock, frame):
-    # print(ALL_FRAMES[frame-1])
-    # image = '/var/tmp/frames/NEUBR_28_%04d.jpg' % (frame,)
-    image = ALL_FRAMES[frame-1]
-    img = aspect_scale(pygame.image.load(image), (WIDTH,HEIGHT))
+def show_image(screen, clock, frames, frame, width, height):
+    image = frames[frame-1]
+    img = aspect_scale(pygame.image.load(image), (width,height))
     # img = pygame.image.load(image)
     screen.blit(img,(0,0))
 
@@ -107,26 +69,25 @@ def show_image(screen, clock, frame):
     # print(frame, 'FPS', int(clock.get_fps()), 'ms', ms_since_start)
 
 
-def generateFilenamesForRecording():
+def generateFilenamesForRecording(rec_duration, rec_fps):
     frame = 0
     timeout = False
     abort = False
 
     while not (timeout or abort):
-        timeout = (frame >= (REC_DURATION * REC_FPS))
+        timeout = (frame >= (rec_duration * rec_fps))
         abort = os.path.exists('ABORT_RECORDING')
-        filename = '/var/tmp/rec/%06d.jpg' % (1000 * frame / REC_FPS,)
+        filename = '/var/tmp/rec/%06d.jpg' % (1000 * frame / rec_fps,)
         yield filename
         frame += 1
 
 
 
-def recordFrames(lock, ns):
+def recordFrames(lock, width, height, rec_duration, rec_fps):
     # prevent processes from queueing up when the rec button is pressed while recording
     if os.path.exists('RECORD_LOCK'):
         print('{} - I\'m sorry Dave, I\'m afraid I can\'t start another recording…'.format(datetime.now()))
         return
-    print(ns)
 
     # only one recording
     lock.acquire()
@@ -145,8 +106,8 @@ def recordFrames(lock, ns):
     # instantiate a camera object
     camera = picamera.PiCamera()
     # setting the camera up
-    camera.resolution = (352,244)
-    camera.framerate = REC_FPS
+    camera.resolution = (width,height)
+    camera.framerate = rec_fps
     camera.hflip = True
     camera.vflip = True
 
@@ -154,11 +115,7 @@ def recordFrames(lock, ns):
     print('{} - start recording'.format(datetime.now()))
 
     camera.capture_sequence(
-        # [
-        #     '/var/tmp/rec/%06d.jpg' % (1000 * frame / REC_FPS,)
-        #     for frame in range(REC_DURATION * REC_FPS)
-        # ]
-        generateFilenamesForRecording()
+        generateFilenamesForRecording(rec_duration, rec_fps)
         ,use_video_port=True)
 
     camera.close() # gracefully shutdown the camera (freeing all resources)
@@ -173,18 +130,18 @@ def recordFrames(lock, ns):
 
 
 
-def buildVideo(folder, video_path, timestamps=REC_TIMESTAMPS):
-    ms_per_frame = 1000/REC_FPS
+def buildVideo(folder, video_path, rec_timestamps, rec_fps):
+    ms_per_frame = 1000/rec_fps
 
-    timestamps = [int(round(x/ms_per_frame))*(ms_per_frame) for x in timestamps] # rounds each timestamp to closest 20
-    timestamps = [os.path.join(folder,'%06d.jpg' % x) for x in timestamps] # create filenames from timestamps
+    rec_timestamps = [int(round(x/ms_per_frame))*(ms_per_frame) for x in rec_timestamps] # rounds each timestamp to closest 20
+    rec_timestamps = [os.path.join(folder,'%06d.jpg' % x) for x in rec_timestamps] # create filenames from timestamps
 
     all_recorded_files = [os.path.join(folder,f) for f in sorted(os.listdir(folder))]
 
     # remove files that does not match the recorded ticks
     outputframes = []
     for f in all_recorded_files:
-        if f in timestamps:
+        if f in rec_timestamps:
             outputframes.append(f)
         else:
             os.remove(f)
@@ -205,10 +162,11 @@ def buildVideo(folder, video_path, timestamps=REC_TIMESTAMPS):
         video_path])
 
 
-def uploadToDropbox(local_path, app_key, app_secret, app_whatever):
+# TODO: implement abstract upload class
+def uploadToDropbox(local_path, app_key, app_secret, app_token):
 
     flow = dropbox.client.DropboxOAuth2FlowNoRedirect(app_key, app_secret)
-    client = dropbox.client.DropboxClient(app_whatever)
+    client = dropbox.client.DropboxClient(app_token)
 
     f = open(local_path, 'rb')
     filename = 'videos/cdmkk_%s.mp4' % (datetime.now().strftime('%Y%m%d_%H%M%S'),)
@@ -217,30 +175,44 @@ def uploadToDropbox(local_path, app_key, app_secret, app_whatever):
     return response['url']
 
 
-def showQrCode(url, ns):
+def generateQrCode(url, folder):
     # creating qrcode from url
     url = pyqrcode.create(url)
-    qr_code_path = os.path.join(ns.root_folder,'pics','code.png')
+    qr_code_path = os.path.join(folder,'code.png')
     url.png(qr_code_path, scale=1) #scale=1 means: 1 little square is 1px
-
-    # display qrcode and background image
-    img = aspect_scale(pygame.image.load(qr_code_path), (111,111))
-    bg = pygame.image.load(os.path.join(ns.root_folder,'pics','bg.png'))
-    screen.blit(bg,(0,0))
-    screen.blit(img,(310,163))
-    pygame.display.update()
-    clock.tick(60)
+    return qr_code_path
 
 
 
 if __name__ == '__main__':
 
+
+    APP_KEY = config.get('Dropbox','app_key')
+    APP_SECRET = config.get('Dropbox','app_secret')
+    APP_TOKEN = config.get('Dropbox','app_token')
+
+    WIDTH  = config.getint('Screen','width')
+    HEIGHT = config.getint('Screen','height')
+    FULLSCREEN = config.getboolean('Screen','fullscreen')
+
+    ROOT_PATH = config.get('System', 'root_folder')
+    RECORD_PATH = config.get('System', 'rec_folder')
+    VIDEO_PATH = config.get('System','video_path')
+
+    FRAMES_PATH = config.get('System','frames_folder')
+    ALL_FRAMES = all_frames = [os.path.join(FRAMES_PATH,f) for f in sorted(os.listdir(FRAMES_PATH))]
+
+
+    REC_DURATION = config.getint('Recorder','rec_duration') # seconds
+    REC_FPS = config.getint('Recorder','rec_fps')
+
+    rec_timestamps = [0]
+    first_rec_timestamp = -1
+
+
     print('{} - start magicKurbelKamera\nresolution: {} x {}'.format(datetime.now(), WIDTH,HEIGHT))
 
     manager = Manager()
-    ns = manager.Namespace()
-
-    ns.root_folder = config.get('System','root_folder')
 
     # Lock Object for recording, only one recording should take place at once
     rec_lock = Lock()
@@ -253,7 +225,7 @@ if __name__ == '__main__':
     pygame.init()
     clock = pygame.time.Clock()
     pygame.display.set_caption('MagicKurbelKamera') # set a window title
-    if fullscreen: screen = pygame.display.set_mode((WIDTH,HEIGHT), pygame.FULLSCREEN)
+    if FULLSCREEN: screen = pygame.display.set_mode((WIDTH,HEIGHT), pygame.FULLSCREEN)
     else:          screen = pygame.display.set_mode((WIDTH,HEIGHT))
 
     background = pygame.Surface(screen.get_size()) # dunno
@@ -262,7 +234,7 @@ if __name__ == '__main__':
     # end of pygame setup
 
     # show init screen
-    bg = pygame.image.load(os.path.join(ns.root_folder,'pics','initial.png'))
+    bg = pygame.image.load(os.path.join(ROOT_PATH,'img','initial.png'))
     screen.blit(bg,(0,0))
     pygame.display.update()
     clock.tick(60)
@@ -292,14 +264,14 @@ if __name__ == '__main__':
                     frame = (frame % len(ALL_FRAMES))
                     if frame == 0: frame = len(ALL_FRAMES)
 
-                    show_image(screen, clock, frame)
+                    show_image(screen, clock, ALL_FRAMES, frame, WIDTH, HEIGHT)
 
                     # count ms since first tick
-                    if FIRST_REC_TIMESTAMP == -1:
-                        FIRST_REC_TIMESTAMP = pygame.time.get_ticks()
-                        REC_TIMESTAMPS = [0]
+                    if first_rec_timestamp == -1:
+                        first_rec_timestamp = pygame.time.get_ticks()
+                        rec_timestamps = [0]
                     else:
-                        REC_TIMESTAMPS.append(pygame.time.get_ticks() - FIRST_REC_TIMESTAMP)
+                        rec_timestamps.append(pygame.time.get_ticks() - first_rec_timestamp)
 
 
                 # escape
@@ -309,37 +281,38 @@ if __name__ == '__main__':
                 # d
                 elif event.key == pygame.K_d:
 
-                    bg = pygame.image.load(os.path.join(ns.root_folder,'pics','development.png'))
+                    # show development screen
+                    bg = pygame.image.load(os.path.join(ROOT_PATH,'img','development.png'))
                     screen.blit(bg,(0,0))
                     pygame.display.update()
 
-                    buildVideo('/var/tmp/rec', config.get('System','video_path'), timestamps=REC_TIMESTAMPS)
+                    print('{} - Start building video'.format(datetime.now()))
+                    buildVideo(RECORD_PATH, VIDEO_PATH, rec_timestamps, REC_FPS)
+                    print('{} - Finished building video'.format(datetime.now()))
                     print('{} - Start uploading'.format(datetime.now()))
-                    db_url = uploadToDropbox(config.get('System','video_path'), app_key, app_secret, app_whatever)
-
+                    url = uploadToDropbox(VIDEO_PATH, APP_KEY, APP_SECRET, APP_TOKEN)
                     print('{} - Finished uploading'.format(datetime.now()))
-                    showQrCode(db_url, ns)
+
+                    # generate qrcode and display it on background image
+                    generateQrCode(url, os.path.join(ROOT_PATH,'img') )
+                    bg = pygame.image.load(os.path.join(ROOT_PATH,'img','bg.png'))
+                    screen.blit(bg,(0,0))
+                    img = aspect_scale(pygame.image.load(qr_code_path), (111,111))
+                    screen.blit(img,(310,163))
+                    pygame.display.update()
+                    clock.tick(60)
 
 
                 # r
                 elif config.getboolean('System','camera') and event.key == pygame.K_r:
-                    FIRST_REC_TIMESTAMP = pygame.time.get_ticks()
-                    REC_TIMESTAMPS = []
+                    first_rec_timestamp = pygame.time.get_ticks()
+                    rec_timestamps = []
 
                     # print('r FIRST_REC_TIMESTAMP', FIRST_REC_TIMESTAMP)
-                    RECORDER = Process(target=recordFrames, args=(rec_lock,ns,))
+                    RECORDER = Process(target=recordFrames, args=(rec_lock,WIDTH,HEIGHT,REC_DURATION,REC_FPS))
                     RECORDER.start()
 
                 elif event.key == pygame.K_s:
                     print('{} - ABORT_RECORDING'.format(datetime.now()))
                     with open('ABORT_RECORDING', 'a'): os.utime('ABORT_RECORDING', None)
 
-
-
-                # f for preview of recording
-                elif event.key == pygame.K_f:
-                    print(FOLDER)
-                    if FOLDER == '/var/tmp/rec':
-                        changeFolder('/var/tmp/frames')
-                    else:
-                        changeFolder('/var/tmp/rec')
