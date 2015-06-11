@@ -11,7 +11,7 @@ from datetime import datetime
 
 import ConfigParser
 config = ConfigParser.ConfigParser()
-config.readfp(open('magic.cfg'))
+config.readfp(open('config.cfg'))
 
 APP_KEY = config.get('Dropbox','app_key')
 APP_SECRET = config.get('Dropbox','app_secret')

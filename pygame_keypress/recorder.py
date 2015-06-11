@@ -5,7 +5,7 @@ from datetime import datetime
 
 import ConfigParser
 config = ConfigParser.ConfigParser()
-config.readfp(open('magic.cfg'))
+config.readfp(open('config.cfg'))
 
 GPIO_ACTIVE = config.getboolean('System','gpio')
 RECORD_PATH = config.get('System','rec_folder')
@@ -75,5 +75,4 @@ def recordFrames(lock, recording_flag, width, height, rec_duration, rec_fps, sto
 
     recording_flag.clear()
     lock.release()
-
 
