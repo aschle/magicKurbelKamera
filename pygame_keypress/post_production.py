@@ -2,6 +2,7 @@
 
 
 import os
+import shutil
 import subprocess
 import dropbox
 import pyqrcode
@@ -19,6 +20,9 @@ APP_TOKEN = config.get('Dropbox','app_token')
 
 REC_FPS = config.getint('Recorder','rec_fps')
 
+ROOT_FOLDER = config.get('System','root_folder')
+REC_FOLDER = config.get('System','rec_folder')
+
 
 def clearRecFolder(folder, rec_timestamps, rec_fps=REC_FPS):
     ms_per_frame = 1000/rec_fps
@@ -33,8 +37,8 @@ def clearRecFolder(folder, rec_timestamps, rec_fps=REC_FPS):
         if f not in rec_timestamps:
             deleted += 1
             os.remove(f)
-    print('deleted', deleted, 'files of', len(all_recorded_files), 'remaining', (len(all_recorded_files) - deleted))
-
+    # print('deleted', deleted, 'files of', len(all_recorded_files), 'remaining', (len(all_recorded_files) - deleted))
+    print('{} deleted {} files of {}, remaining {}'.format(datetime.now(), deleted, len(all_recorded_files), (len(all_recorded_files) - deleted)))
 
 
 def buildVideo(folder, video_path, rec_timestamps, rec_fps=REC_FPS):
@@ -44,18 +48,26 @@ def buildVideo(folder, video_path, rec_timestamps, rec_fps=REC_FPS):
 
     # rename outputframes
     for i in range(len(outputframes)):
-        os.rename(outputframes[i], (os.path.join(folder,'%06d.jpg'%(i+1))))
+        os.rename(outputframes[i], (os.path.join(folder,'%06d.jpg'%(30+i+1))))
+
+    # copy trailer frames
+    trailer_folder = os.path.join(ROOT_FOLDER,'img', 'trailer')
+    trailer_frames = [os.path.join(trailer_folder,f) for f in sorted(os.listdir(trailer_folder))]
+    for f in trailer_frames:
+        shutil.copy(f, REC_FOLDER)
 
     # create mp4
-    os.chdir('/var/tmp/rec/')
     subprocess.call([
         '/usr/local/bin/ffmpeg',
+        '-v', '16',
         '-y',
-        '-framerate', '16',
-        '-i',         '%06d.jpg',
-        '-c:v',       'libx264',
-        '-pix_fmt',   'yuv420p',
-        video_path])
+        '-framerate', '24',
+        '-i', '/var/tmp/rec/%06d.jpg',
+        '-c:v', 'libx264',
+        '-preset', 'faster',
+        '-pix_fmt', 'yuv420p',
+        video_path
+    ])
 
 
 # TODO: implement abstract upload class

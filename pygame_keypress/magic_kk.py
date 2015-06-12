@@ -62,6 +62,10 @@ if __name__ == '__main__':
     RECORD_PATH = config.get('System', 'rec_folder')
     VIDEO_PATH = config.get('System','video_path')
 
+    TIMEOUT = config.getint('System', 'timeout')
+    QR_TIMEOUT = config.getint('System', 'qr_timeout')
+
+
     FRAMES_PATH = config.get('System','frames_folder')
     ALL_FRAMES = all_frames = [os.path.join(FRAMES_PATH,f) for f in sorted(os.listdir(FRAMES_PATH))]
 
@@ -69,8 +73,6 @@ if __name__ == '__main__':
     REC_DURATION = config.getint('Recorder','rec_duration') # seconds
     REC_FPS = config.getint('Recorder','rec_fps')
 
-    TIMEOUT = config.getint('System', 'timeout')
-    QR_TIMEOUT = config.getint('System', 'qr_timeout')
 
     rec_timestamps = [0]
     first_rec_timestamp = -1
@@ -98,7 +100,7 @@ if __name__ == '__main__':
     else:          screen = pygame.display.set_mode((WIDTH,HEIGHT))
 
     background = pygame.Surface(screen.get_size()) # dunno
-    background.fill((255,255,255)) # black background
+    background.fill((0,0,0)) # black background
     background = background.convert() # dunno
     # end of pygame setup
 
@@ -137,7 +139,8 @@ if __name__ == '__main__':
 
         # display video
         if play_movie:
-            screen.blit(movie_screen,(0,0))
+            screen.blit(background,(0,0))
+            screen.blit(movie_screen,(88,30))
             pygame.display.update()
             clock.tick(60)
 
@@ -181,7 +184,6 @@ if __name__ == '__main__':
                         rec_timestamps.append(pygame.time.get_ticks() - first_rec_timestamp)
                     ticks += 1
                     if ticks % 50 == 5:
-                        print('ticks', ticks)
                         clearRecFolder(REC_PATH, rec_timestamps, REC_FPS)
 
 
@@ -206,8 +208,6 @@ if __name__ == '__main__':
                         pygame.display.update()
                         clock.tick(60)
 
-
-                        # print('r FIRST_REC_TIMESTAMP', FIRST_REC_TIMESTAMP)
                         recorder = Process(target=recordFrames,
                                            args=(rec_lock,
                                                  recording_flag,
