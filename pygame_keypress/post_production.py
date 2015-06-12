@@ -9,6 +9,10 @@ import pyqrcode
 
 from datetime import datetime
 
+# removing InsecurePlatformWarning
+import urllib3
+urllib3.disable_warnings()
+
 
 import ConfigParser
 config = ConfigParser.ConfigParser()
@@ -38,7 +42,7 @@ def clearRecFolder(folder, rec_timestamps, rec_fps=REC_FPS):
             deleted += 1
             os.remove(f)
     # print('deleted', deleted, 'files of', len(all_recorded_files), 'remaining', (len(all_recorded_files) - deleted))
-    print('{} deleted {} files of {}, remaining {}'.format(datetime.now(), deleted, len(all_recorded_files), (len(all_recorded_files) - deleted)))
+    print('{} - deleted {} files of {}, remaining {}'.format(datetime.now(), deleted, len(all_recorded_files), (len(all_recorded_files) - deleted)))
 
 
 def buildVideo(folder, video_path, rec_timestamps, rec_fps=REC_FPS):
