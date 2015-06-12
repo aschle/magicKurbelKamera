@@ -135,10 +135,8 @@ if __name__ == '__main__':
     REC_DURATION = config.getint('Recorder','rec_duration') # seconds
     REC_FPS = config.getint('Recorder','rec_fps')
 
-
     CLOCK_X = config.getint('Screen','clock_x')
     CLOCK_Y = config.getint('Screen','clock_y')
-
 
     rec_timestamps = [0]
     first_rec_timestamp = -1
@@ -272,7 +270,6 @@ if __name__ == '__main__':
                         screen.blit(img,(0,0))
                         # pygame.display.update() # pygame.display.flip()
                         # clock.tick(60)
-
 
                         # count ms since first tick
                         if recording_flag.is_set() and not first_rec_timestamp == -1:
