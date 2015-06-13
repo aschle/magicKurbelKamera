@@ -3,7 +3,9 @@
 
 Encoder encoder(2, 3);
 ClickButton rec_button(4, LOW, CLICKBTN_PULLUP);
-int button_state = 0;
+ClickButton abort_button(7, LOW, CLICKBTN_PULLUP);
+int rec_button_state = 0;
+int abort_button_state = 0;
 
 void setup() {
   Serial.begin(9600);
@@ -12,6 +14,10 @@ void setup() {
   rec_button.debounceTime   = 20;   // Debounce timer in ms
   rec_button.multiclickTime = 250;  // Time limit for multi clicks
   rec_button.longClickTime  = 2500; // time until "held-down clicks" register
+
+  abort_button.debounceTime   = 20;   // Debounce timer in ms
+  abort_button.multiclickTime = 250;  // Time limit for multi clicks
+  abort_button.longClickTime  = 2500; // time until "held-down clicks" register
 }
 
 long pos  = -999;
@@ -37,18 +43,27 @@ void loop() {
     last_value = act_value;
   }
 
-  
-  rec_button.Update();
-  button_state = rec_button.clicks;
 
-  if(button_state == 1){ // single click
+  rec_button.Update();
+  rec_button_state = rec_button.clicks;
+  if(rec_button_state == 1){ // single click
     Keyboard.press('r');
     Keyboard.release('r');
-  }else if(button_state == 2){ // double click
-    Keyboard.press('p');
-    Keyboard.release('p');
-  }else if(button_state == -1){ // long press
-    Keyboard.press(KEY_ESC);
-    Keyboard.release(KEY_ESC);
   }
+
+  abort_button.Update();
+  abort_button_state = abort_button.clicks;
+  if(abort_button_state == 1){ // single click
+    Keyboard.press('e');
+    Keyboard.release('e');
+  }
+
+
+//  else if(button_state == 2){ // double click
+//    Keyboard.press('p');
+//    Keyboard.release('p');
+//  }else if(button_state == -1){ // long press
+//    Keyboard.press(KEY_ESC);
+//    Keyboard.release(KEY_ESC);
+//  }
 }
