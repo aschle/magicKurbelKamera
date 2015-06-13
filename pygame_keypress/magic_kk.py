@@ -13,6 +13,30 @@ import ConfigParser
 config = ConfigParser.ConfigParser()
 config.readfp(open('config.cfg'))
 
+if config.getboolean('System','gpio'):
+    import RPi.GPIO as GPIO
+    GPIO.setmode(GPIO.BOARD)
+
+    GPIO.setup(13, GPIO.OUT)
+    GPIO.output(13, GPIO.HIGH)
+
+    # GPIO.setup(15, GPIO.OUT)
+    # GPIO.output(15, GPIO.HIGH)
+
+    # GPIO.setup(29, GPIO.OUT)
+    # GPIO.output(29, GPIO.HIGH)
+
+    # GPIO.setup(31, GPIO.OUT)
+    # GPIO.output(31, GPIO.HIGH)
+
+    # GPIO.setup(33, GPIO.OUT)
+    # GPIO.output(33, GPIO.HIGH)
+
+    # GPIO.setup(35, GPIO.OUT)
+    # GPIO.output(35, GPIO.HIGH)
+
+
+
 
 from post_production import clearRecFolder, buildVideo, uploadToDropbox as upload, generateQrCode
 from recorder import recordFrames
@@ -22,6 +46,10 @@ frame = 1
 stop_recording_event = Event()
 rec_timestamps = [0]
 first_rec_timestamp = -1
+
+
+def toggleRelais(pin):
+    GPIO.output(pin, not GPIO.input(pin))
 
 # not sure alexa stole this code from the internets
 def scale(img,(bx,by)):
@@ -119,6 +147,7 @@ if __name__ == '__main__':
     # magic ahead
     while mainloop:
         diff = pygame.time.get_ticks() - last_event
+
         if diff > (TIMEOUT * 1000) and not show_qr_code and not play_movie:
             reset_flag.set()
             last_event = pygame.time.get_ticks()
@@ -148,6 +177,7 @@ if __name__ == '__main__':
                 movie.rewind()
                 movie.play()
 
+
         for event in pygame.event.get():
 
             # pygame window closed by user
@@ -161,6 +191,8 @@ if __name__ == '__main__':
                 if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
 
                     play_movie = False
+
+                    toggleRelais(13) # klick klack
 
                     # increment or decrement the actual frame number
                     if event.key == pygame.K_LEFT:   frame -= 1
@@ -183,6 +215,7 @@ if __name__ == '__main__':
                     else:
                         rec_timestamps.append(pygame.time.get_ticks() - first_rec_timestamp)
                     ticks += 1
+
                     if ticks % 50 == 5:
                         clearRecFolder(REC_PATH, rec_timestamps, REC_FPS)
 
@@ -247,5 +280,6 @@ if __name__ == '__main__':
                 elif event.key == pygame.K_e:
                     reset_flag.set()
 
+    GPIO.cleanup()
 
 

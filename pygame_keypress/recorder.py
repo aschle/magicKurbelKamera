@@ -19,7 +19,14 @@ if config.getboolean('System','gpio'):
     import RPi.GPIO as GPIO
     # init GPIO
     GPIO.setmode(GPIO.BOARD)
-    GPIO.setup(7, GPIO.OUT)
+
+    # # Leuchtkasten
+    # GPIO.setup( 7, GPIO.OUT)
+    # GPIO.setup( 7, GPIO.HIGH)
+
+    # # Rec-Lampe
+    # GPIO.setup(11, GPIO.OUT)
+    # GPIO.setup(11, GPIO.HIGH)
 
 
 def generateFilenamesForRecording(rec_duration, rec_fps, stop_recording_event):
@@ -43,7 +50,12 @@ def recordFrames(lock, recording_flag, width, height, rec_duration, rec_fps, sto
     lock.acquire()
     recording_flag.set()
 
-    if GPIO_ACTIVE: GPIO.output(7,True) # turn on led
+    if GPIO_ACTIVE:
+        GPIO.setup( 7, GPIO.OUT)
+        GPIO.setup( 11, GPIO.OUT)
+
+        GPIO.output(7,GPIO.LOW) # turn on led
+        GPIO.output(11,GPIO.LOW) # turn on led
 
     # cleanup recording directory
     filelist = [ f for f in os.listdir(RECORD_PATH) if f.endswith(".jpg") ]
@@ -70,8 +82,11 @@ def recordFrames(lock, recording_flag, width, height, rec_duration, rec_fps, sto
     camera.close() # gracefully shutdown the camera (freeing all resources)
     print('{} - finished recording'.format(datetime.now()))
 
+
     # release the lock and delete the lock file
-    if GPIO_ACTIVE: GPIO.output(7,False) # turn off led
+    if GPIO_ACTIVE:
+        GPIO.output(7,GPIO.HIGH) # turn off led
+        GPIO.output(11,GPIO.HIGH) # turn off led
 
     recording_flag.clear()
     lock.release()
