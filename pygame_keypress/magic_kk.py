@@ -154,8 +154,11 @@ if __name__ == '__main__':
     pygame.init()
     clock = pygame.time.Clock()
     pygame.display.set_caption('MagicKurbelKamera') # set a window title
-    if FULLSCREEN: screen = pygame.display.set_mode((WIDTH,HEIGHT), pygame.FULLSCREEN)
-    else:          screen = pygame.display.set_mode((WIDTH,HEIGHT))
+    if FULLSCREEN:
+        screen = pygame.display.set_mode((WIDTH,HEIGHT), pygame.FULLSCREEN)
+        pygame.mouse.set_visible(0)
+    else:
+        screen = pygame.display.set_mode((WIDTH,HEIGHT))
 
     background = pygame.Surface(screen.get_size()) # dunno
     background.fill((0,0,0)) # black background
