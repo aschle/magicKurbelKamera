@@ -41,12 +41,40 @@ if config.getboolean('System','gpio'):
 from post_production import clearRecFolder, buildVideo, uploadToDropbox as upload, generateQrCode
 from recorder import recordFrames
 
-play_movie = True
+play_status_movie = True
 frame = 1
 stop_recording_event = Event()
 rec_timestamps = [0]
 first_rec_timestamp = -1
 
+def postproduction(screen, stop_recording_event, rec_timeout_flag, rec_truly_started_event):
+    stop_recording_event.set()
+    rec_timeout_flag.clear()
+    rec_truly_started_event.clear()
+
+    # show development screen
+    bg = pygame.image.load(os.path.join(ROOT_PATH,'img','development.png'))
+    screen.blit(bg,(0,0))
+    pygame.display.update()
+
+    print('{} - Start building video'.format(datetime.now()))
+    buildVideo(RECORD_PATH, VIDEO_PATH, rec_timestamps, REC_FPS)
+    print('{} - Finished building video'.format(datetime.now()))
+    print('{} - Start uploading'.format(datetime.now()))
+    url = upload(VIDEO_PATH)
+    print('{} - Finished uploading'.format(datetime.now()))
+
+    # generate qrcode and display it on background image
+    qr_code_path = generateQrCode(url, os.path.join(ROOT_PATH,'img') )
+    bg = pygame.image.load(os.path.join(ROOT_PATH,'img','bg.png'))
+    screen.blit(bg,(0,0))
+    img = scale(pygame.image.load(qr_code_path), (111,111))
+    screen.blit(img,(310,163))
+    pygame.display.update()
+    clock.tick(60)
+    show_qr_code = True
+
+    return pygame.time.get_ticks()
 
 def toggleRelais(pin):
     GPIO.output(pin, not GPIO.input(pin))
@@ -113,11 +141,13 @@ if __name__ == '__main__':
     rec_lock = Lock()
     recording_flag = Event()
     stop_recording_event = Event()
+    rec_timeout_flag = Event()
+    rec_truly_started_event = Event()
 
     reset_flag = Event()
 
     # Playing movie state
-    play_movie = True
+    play_status_movie = True
     show_qr_code = False
 
     # pygame setup
@@ -148,15 +178,25 @@ if __name__ == '__main__':
     while mainloop:
         diff = pygame.time.get_ticks() - last_event
 
-        if diff > (TIMEOUT * 1000) and not show_qr_code and not play_movie:
-            reset_flag.set()
-            last_event = pygame.time.get_ticks()
-        elif diff > (QR_TIMEOUT * 1000) and show_qr_code:
+        # Normal timeout after some time
+        if diff > (TIMEOUT * 1000) and not show_qr_code and not play_status_movie:
             reset_flag.set()
             last_event = pygame.time.get_ticks()
 
+        # Recoding is timed out
+        elif rec_timeout_flag.is_set():
+            last_event = postproduction(screen, stop_recording_event, rec_timeout_flag, rec_truly_started_event)
+
+        # A little longer timeout so you have time to scan the qr code
+        elif diff > (QR_TIMEOUT * 1000) and show_qr_code:
+            print('TIMEOUT 2')
+            reset_flag.set()
+            last_event = pygame.time.get_ticks()
+
+
+
         if (reset_flag.is_set()):
-            play_movie = True
+            play_status_movie = True
             show_qr_code = False
             movie.stop()
             frame = 1
@@ -167,7 +207,7 @@ if __name__ == '__main__':
             reset_flag.clear()
 
         # display video
-        if play_movie:
+        if play_status_movie:
             screen.blit(background,(0,0))
             screen.blit(movie_screen,(88,30))
             pygame.display.update()
@@ -190,7 +230,7 @@ if __name__ == '__main__':
                 # left and right arrow
                 if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
 
-                    play_movie = False
+                    play_status_movie = False
 
                     toggleRelais(13) # klick klack
 
@@ -212,6 +252,7 @@ if __name__ == '__main__':
                     if first_rec_timestamp == -1:
                         first_rec_timestamp = pygame.time.get_ticks()
                         rec_timestamps = [0]
+                        rec_truly_started_event.set()
                     else:
                         rec_timestamps.append(pygame.time.get_ticks() - first_rec_timestamp)
                     ticks += 1
@@ -225,11 +266,11 @@ if __name__ == '__main__':
                     mainloop = False # user pressed ESC
 
 
-                # r
-                elif config.getboolean('System','camera') and event.key == pygame.K_r:
+                # Record Button
+                elif event.key == pygame.K_r and config.getboolean('System','camera'):
                     if not recording_flag.is_set():
 
-                        play_movie = False
+                        play_status_movie = False
                         stop_recording_event.clear()
 
                         first_rec_timestamp = pygame.time.get_ticks()
@@ -241,39 +282,21 @@ if __name__ == '__main__':
                         pygame.display.update()
                         clock.tick(60)
 
+                        rec_timeout_flag.clear()
                         recorder = Process(target=recordFrames,
                                            args=(rec_lock,
                                                  recording_flag,
                                                  WIDTH, HEIGHT,
                                                  REC_DURATION,
                                                  REC_FPS,
-                                                 stop_recording_event))
+                                                 stop_recording_event,
+                                                 rec_timeout_flag,
+                                                 rec_truly_started_event))
                         recorder.start()
+
                     else:
-                        stop_recording_event.set()
-
-                        # show development screen
-                        bg = pygame.image.load(os.path.join(ROOT_PATH,'img','development.png'))
-                        screen.blit(bg,(0,0))
-                        pygame.display.update()
-
-                        print('{} - Start building video'.format(datetime.now()))
-                        buildVideo(RECORD_PATH, VIDEO_PATH, rec_timestamps, REC_FPS)
-                        print('{} - Finished building video'.format(datetime.now()))
-                        print('{} - Start uploading'.format(datetime.now()))
-                        url = upload(VIDEO_PATH)
-                        print('{} - Finished uploading'.format(datetime.now()))
-
-                        # generate qrcode and display it on background image
-                        qr_code_path = generateQrCode(url, os.path.join(ROOT_PATH,'img') )
-                        bg = pygame.image.load(os.path.join(ROOT_PATH,'img','bg.png'))
-                        screen.blit(bg,(0,0))
-                        img = scale(pygame.image.load(qr_code_path), (111,111))
-                        screen.blit(img,(310,163))
-                        pygame.display.update()
-                        clock.tick(60)
-                        show_qr_code = True
-                        last_event = pygame.time.get_ticks()
+                        # start postproduction
+                        last_event = postproduction(screen, stop_recording_event, rec_timeout_flag, rec_truly_started_event)
 
 
                 # this is the bin button

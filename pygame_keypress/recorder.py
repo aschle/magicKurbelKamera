@@ -40,7 +40,7 @@ def generateFilenamesForRecording(rec_duration, rec_fps, stop_recording_event):
         frame += 1
 
 
-def recordFrames(lock, recording_flag, width, height, rec_duration, rec_fps, stop_recording_event):
+def recordFrames(lock, recording_flag, width, height, rec_duration, rec_fps, stop_recording_event, rec_timeout_flag, rec_truly_started_event):
     # prevent processes from queueing up when the rec button is pressed while recording
     if recording_flag.is_set():
         print('{} - I\'m sorry Dave, I\'m afraid I can\'t start another recording…'.format(datetime.now()))
@@ -82,12 +82,16 @@ def recordFrames(lock, recording_flag, width, height, rec_duration, rec_fps, sto
     camera.close() # gracefully shutdown the camera (freeing all resources)
     print('{} - finished recording'.format(datetime.now()))
 
+    # set timeoutflag if the user never pressed the rec-button again, so timout after X seconds
+    # and he actually kurbeled, so recording really starts
+    if not stop_recording_event.is_set() and rec_truly_started_event.is_set():
+        rec_timeout_flag.set()
 
-    # release the lock and delete the lock file
     if GPIO_ACTIVE:
-        GPIO.output(7,GPIO.HIGH) # turn off led
-        GPIO.output(11,GPIO.HIGH) # turn off led
+        GPIO.output(7,GPIO.HIGH) # turn off rec-Button lamp
+        GPIO.output(11,GPIO.HIGH) # turn off lighting box
 
+    # release the lock
     recording_flag.clear()
     lock.release()
 
