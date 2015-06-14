@@ -47,15 +47,10 @@ stop_recording_event = Event()
 rec_timestamps = [0]
 first_rec_timestamp = -1
 
-def postproduction(screen, stop_recording_event, rec_timeout_flag, rec_truly_started_event):
+def postproduction(stop_recording_event, rec_timeout_flag, rec_truly_started_event, postproduction_flag, postproduction_finished_flag):
     stop_recording_event.set()
     rec_timeout_flag.clear()
     rec_truly_started_event.clear()
-
-    # show development screen
-    bg = pygame.image.load(os.path.join(ROOT_PATH,'img','development.png'))
-    screen.blit(bg,(0,0))
-    pygame.display.update()
 
     print('{} - Start building video'.format(datetime.now()))
     buildVideo(RECORD_PATH, VIDEO_PATH, rec_timestamps, REC_FPS)
@@ -64,20 +59,23 @@ def postproduction(screen, stop_recording_event, rec_timeout_flag, rec_truly_sta
     url = upload(VIDEO_PATH)
     print('{} - Finished uploading'.format(datetime.now()))
 
-    # generate qrcode and display it on background image
-    qr_code_path = generateQrCode(url, os.path.join(ROOT_PATH,'img') )
-    bg = pygame.image.load(os.path.join(ROOT_PATH,'img','bg.png'))
-    screen.blit(bg,(0,0))
-    img = scale(pygame.image.load(qr_code_path), (111,111))
-    screen.blit(img,(310,163))
-    pygame.display.update()
-    clock.tick(60)
-    show_qr_code = True
+    generateQrCode(url, os.path.join(ROOT_PATH,'img') )
+
+    postproduction_finished_flag.set()
 
     return pygame.time.get_ticks()
 
 def toggleRelais(pin):
     GPIO.output(pin, not GPIO.input(pin))
+
+
+def changeVideo(path):
+    movie = pygame.movie.Movie(path)
+    movie_screen = pygame.Surface(movie.get_size()).convert()
+    movie.set_display(movie_screen)
+    movie.play()
+
+    return movie, movie_screen
 
 # not sure alexa stole this code from the internets
 def scale(img,(bx,by)):
@@ -143,8 +141,10 @@ if __name__ == '__main__':
     stop_recording_event = Event()
     rec_timeout_flag = Event()
     rec_truly_started_event = Event()
-
     reset_flag = Event()
+
+    postproduction_flag = Event()
+    postproduction_finished_flag = Event()
 
     # Playing movie state
     play_status_movie = True
@@ -163,11 +163,7 @@ if __name__ == '__main__':
     # end of pygame setup
 
     # load init video
-    movie = pygame.movie.Movie(os.path.join(ROOT_PATH,'img','magic.mp4'))
-    movie_screen = pygame.Surface(movie.get_size()).convert()
-    movie.set_display(movie_screen)
-    movie.play()
-
+    movie, movie_screen = changeVideo(os.path.join(ROOT_PATH,'img','magic.mp4'))
 
     frame = 1
     ticks = 0
@@ -185,17 +181,23 @@ if __name__ == '__main__':
 
         # Recoding is timed out
         elif rec_timeout_flag.is_set():
-            last_event = postproduction(screen, stop_recording_event, rec_timeout_flag, rec_truly_started_event)
+            postproduction_flag.set()
+            Process(target=postproduction,
+                    args = (stop_recording_event,
+                            rec_timeout_flag,
+                            rec_truly_started_event,
+                            postproduction_flag,
+                            postproduction_finished_flag)).start()
 
         # A little longer timeout so you have time to scan the qr code
         elif diff > (QR_TIMEOUT * 1000) and show_qr_code:
-            print('TIMEOUT 2')
             reset_flag.set()
             last_event = pygame.time.get_ticks()
 
 
 
         if (reset_flag.is_set()):
+            movie, movie_screen = changeVideo(os.path.join(ROOT_PATH,'img','magic.mp4'))
             play_status_movie = True
             show_qr_code = False
             movie.stop()
@@ -204,12 +206,13 @@ if __name__ == '__main__':
             rec_timestamps = []
             first_rec_timestamp = -1
             clearRecFolder(REC_PATH, rec_timestamps, REC_FPS)
+            postproduction_finished_flag.clear()
             reset_flag.clear()
 
         # display video
         if play_status_movie:
             screen.blit(background,(0,0))
-            screen.blit(movie_screen,(88,30))
+            screen.blit(movie_screen,(0,0))
             pygame.display.update()
             clock.tick(60)
 
@@ -217,91 +220,128 @@ if __name__ == '__main__':
                 movie.rewind()
                 movie.play()
 
+        # if we are not in postproduction state
+        if not postproduction_flag.is_set() and not show_qr_code:
 
-        for event in pygame.event.get():
+            for event in pygame.event.get():
 
-            # pygame window closed by user
-            if event.type == pygame.QUIT: mainloop = False
+                # pygame window closed by user
+                if event.type == pygame.QUIT: mainloop = False
 
-            # key is released
-            elif event.type == pygame.KEYUP:
-                last_event = pygame.time.get_ticks()
+                # key is released
+                elif event.type == pygame.KEYUP:
+                    last_event = pygame.time.get_ticks()
 
-                # left and right arrow
-                if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
-
-                    play_status_movie = False
-
-                    toggleRelais(13) # klick klack
-
-                    # increment or decrement the actual frame number
-                    if event.key == pygame.K_LEFT:   frame -= 1
-                    elif event.key == pygame.K_RIGHT: frame += 1
-
-                    frame = (frame % len(ALL_FRAMES))
-                    if frame == 0: frame = len(ALL_FRAMES)
-
-                    image = ALL_FRAMES[frame - 1]
-                    img = scale(pygame.image.load(image), (WIDTH,HEIGHT))
-                    screen.blit(img,(0,0))
-                    pygame.display.update() # pygame.display.flip()
-                    clock.tick(60)
-
-
-                    # count ms since first tick
-                    if first_rec_timestamp == -1:
-                        first_rec_timestamp = pygame.time.get_ticks()
-                        rec_timestamps = [0]
-                        rec_truly_started_event.set()
-                    else:
-                        rec_timestamps.append(pygame.time.get_ticks() - first_rec_timestamp)
-                    ticks += 1
-
-                    if ticks % 50 == 5:
-                        clearRecFolder(REC_PATH, rec_timestamps, REC_FPS)
-
-
-                # escape
-                elif event.key == pygame.K_ESCAPE:
-                    mainloop = False # user pressed ESC
-
-
-                # Record Button
-                elif event.key == pygame.K_r and config.getboolean('System','camera'):
-                    if not recording_flag.is_set():
+                    # left and right arrow
+                    if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
 
                         play_status_movie = False
-                        stop_recording_event.clear()
 
-                        first_rec_timestamp = pygame.time.get_ticks()
-                        rec_timestamps = []
+                        toggleRelais(13) # klick klack
 
-                        # show pre_rec screen
-                        bg = pygame.image.load(os.path.join(ROOT_PATH,'img','pre_rec.png'))
-                        screen.blit(bg,(0,0))
-                        pygame.display.update()
+                        # increment or decrement the actual frame number
+                        if event.key == pygame.K_LEFT:   frame -= 1
+                        elif event.key == pygame.K_RIGHT: frame += 1
+
+                        frame = (frame % len(ALL_FRAMES))
+                        if frame == 0: frame = len(ALL_FRAMES)
+
+                        image = ALL_FRAMES[frame - 1]
+                        img = scale(pygame.image.load(image), (WIDTH,HEIGHT))
+                        screen.blit(img,(0,0))
+                        pygame.display.update() # pygame.display.flip()
                         clock.tick(60)
 
-                        rec_timeout_flag.clear()
-                        recorder = Process(target=recordFrames,
-                                           args=(rec_lock,
-                                                 recording_flag,
-                                                 WIDTH, HEIGHT,
-                                                 REC_DURATION,
-                                                 REC_FPS,
-                                                 stop_recording_event,
-                                                 rec_timeout_flag,
-                                                 rec_truly_started_event))
-                        recorder.start()
 
-                    else:
-                        # start postproduction
-                        last_event = postproduction(screen, stop_recording_event, rec_timeout_flag, rec_truly_started_event)
+                        # count ms since first tick
+                        if recording_flag.is_set() and not first_rec_timestamp == -1:
+                            rec_truly_started_event.set()
+                            rec_timestamps.append(pygame.time.get_ticks() - first_rec_timestamp)
+                        else:
+                            first_rec_timestamp = pygame.time.get_ticks()
+                            rec_timestamps = [0]
+
+                        ticks += 1
+
+                        if ticks % 50 == 5:
+                            clearRecFolder(REC_PATH, rec_timestamps, REC_FPS)
 
 
-                # this is the bin button
-                elif event.key == pygame.K_e:
-                    reset_flag.set()
+                    # escape
+                    elif event.key == pygame.K_ESCAPE:
+                        mainloop = False # user pressed ESC
+
+
+                    # Record Button
+                    elif event.key == pygame.K_r and config.getboolean('System','camera'):
+                        if not recording_flag.is_set():
+
+                            play_status_movie = False
+                            stop_recording_event.clear()
+
+                            first_rec_timestamp = pygame.time.get_ticks()
+                            rec_timestamps = []
+
+                            # show pre_rec screen
+                            bg = pygame.image.load(os.path.join(ROOT_PATH,'img','pre_rec.png'))
+                            screen.blit(bg,(0,0))
+                            pygame.display.update()
+                            clock.tick(60)
+
+                            rec_timeout_flag.clear()
+                            Process(target=recordFrames,
+                                    args=(rec_lock,
+                                          recording_flag,
+                                          WIDTH, HEIGHT,
+                                          REC_DURATION,
+                                          REC_FPS,
+                                          stop_recording_event,
+                                          rec_timeout_flag,
+                                          rec_truly_started_event)).start()
+
+                        else:
+                            # start postproduction
+                            postproduction_flag.set()
+                            Process(target=postproduction,
+                                    args = (stop_recording_event,
+                                            rec_timeout_flag,
+                                            rec_truly_started_event,
+                                            postproduction_flag,
+                                            postproduction_finished_flag)).start()
+
+
+                    # this is the bin button
+                    elif event.key == pygame.K_e:
+                        reset_flag.set()
+
+        else:
+            # ignore keyboard-Events while in postproduction
+            for event in pygame.event.get():
+                pass
+
+            # here we are in postproduction state
+            if not postproduction_finished_flag.is_set():
+
+                if not play_status_movie:
+                    movie, movie_screen = changeVideo(os.path.join(ROOT_PATH,'img','development.mp4'))
+                    play_status_movie = True
+
+
+            elif postproduction_finished_flag.is_set() and not show_qr_code:
+                play_status_movie = False
+                # display qr code on background image
+                qr_code_path = os.path.join(ROOT_PATH,'img', 'code.png')
+                bg = pygame.image.load(os.path.join(ROOT_PATH,'img','bg.png'))
+                screen.blit(bg,(0,0))
+                img = scale(pygame.image.load(qr_code_path), (111,111))
+                screen.blit(img,(310,163))
+                pygame.display.update()
+                clock.tick(60)
+                postproduction_flag.clear()
+                last_event = pygame.time.get_ticks()
+                show_qr_code = True
+
+
 
     GPIO.cleanup()
 
