@@ -401,7 +401,7 @@ if __name__ == '__main__':
 
             timespent = (pygame.time.get_ticks() - first_rec_timestamp)/1000
 
-            if frame < 1:
+            if rec_truly_started_event.is_set():
                 # repaint last frame
                 image = ALL_FRAMES[frame - 1]
                 img = scale(pygame.image.load(image), (WIDTH,HEIGHT))
