@@ -24,7 +24,8 @@ long pos  = -999;
 long last_value = 0;
 long act_value = 0;
 
-int distance = 10; // how many ticks until keypress is fired, 10 seemed to result in ~8 keys per round
+//int distance = 10; // how many ticks until keypress is fired, 10 seemed to result in ~8 keys per round
+int distance = 6; // how many ticks until keypress is fired, 10 seemed to result in ~8 keys per round
 
 void loop() {
 
