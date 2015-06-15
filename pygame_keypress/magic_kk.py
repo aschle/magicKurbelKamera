@@ -219,12 +219,13 @@ if __name__ == '__main__':
             first_rec_timestamp = -1
             clearRecFolder(REC_PATH, rec_timestamps, REC_FPS)
             postproduction_finished_flag.clear()
-            recording_flag.clear()
-            if GPIO_ACTIVE:
-                GPIO.setup( 7, GPIO.OUT)
-                GPIO.setup( 11, GPIO.OUT)
-                GPIO.output(7,GPIO.HIGH) # turn off rec-Button lamp
-                GPIO.output(11,GPIO.HIGH) # turn off lighting box
+
+            GPIO.setup( 7, GPIO.OUT)
+            GPIO.setup( 11, GPIO.OUT)
+
+            GPIO.output(7,GPIO.HIGH) # turn on led
+            GPIO.output(11,GPIO.HIGH) # turn on led
+
             reset_flag.clear()
 
         # display video
@@ -284,7 +285,6 @@ if __name__ == '__main__':
                         if ticks % 50 == 5:
                             clearRecFolder(REC_PATH, rec_timestamps, REC_FPS)
 
-
                     # escape
                     elif event.key == pygame.K_ESCAPE:
                         mainloop = False # user pressed ESC
@@ -338,6 +338,14 @@ if __name__ == '__main__':
                     elif event.key == pygame.K_e:
                         reset_flag.set()
 
+                    # escape
+                    elif event.key == pygame.K_ESCAPE:
+                        mainloop = False # user pressed ESC
+
+                    elif event.key == pygame.K_h:
+                        os.system('sudo halt')
+
+
         else:
             # ignore keyboard-Events while in postproduction
             for event in pygame.event.get():
@@ -368,7 +376,9 @@ if __name__ == '__main__':
         # if in recoding state then update timer image
         if (recording_flag.is_set()):
             timespent = (pygame.time.get_ticks() - first_rec_timestamp)/1000
-            image = TIMER_IMGS[(timespent-1)%11]
+            imgnum = (timespent/5)%12
+            image = TIMER_IMGS[imgnum]
+            print imgnum
             img = scale(pygame.image.load(image), (50,50))
             screen.blit(img,(CLOCK_X,CLOCK_Y))
 
@@ -376,5 +386,5 @@ if __name__ == '__main__':
         pygame.display.update()
         clock.tick(60)
 
-    if GPIO_ACTIVE: 
+    if GPIO_ACTIVE:
         GPIO.cleanup()
