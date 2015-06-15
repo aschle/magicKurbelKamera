@@ -395,7 +395,8 @@ if __name__ == '__main__':
 
             timespent = (pygame.time.get_ticks() - first_rec_timestamp)/1000
 
-            if not (timespent == 0)
+            if frame < 1:
+                print('FUCK YOU!!!!!!!')
                 # repaint last frame
                 image = ALL_FRAMES[frame - 1]
                 img = scale(pygame.image.load(image), (WIDTH,HEIGHT))
