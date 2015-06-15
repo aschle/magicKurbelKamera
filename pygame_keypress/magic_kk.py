@@ -181,7 +181,9 @@ if __name__ == '__main__':
     # end of pygame setup
 
     # load init video
-    movie, movie_screen = changeVideo(os.path.join(ROOT_PATH,'img','init.mp4'), WIDTH, HEIGHT)
+
+    current_video = os.path.join(ROOT_PATH,'img','init.mp4')
+    movie, movie_screen = changeVideo(current_video, WIDTH, HEIGHT)
 
     frame = 1
     ticks = 0
@@ -213,7 +215,8 @@ if __name__ == '__main__':
             last_event = pygame.time.get_ticks()
 
         if (reset_flag.is_set()):
-            movie, movie_screen = changeVideo(os.path.join(ROOT_PATH,'img','init.mp4'), WIDTH, HEIGHT)
+            current_video = os.path.join(ROOT_PATH,'img','init.mp4')
+            movie, movie_screen = changeVideo(current_video, WIDTH, HEIGHT)
             play_status_movie = True
             show_qr_code = False
             movie.stop()
@@ -241,8 +244,8 @@ if __name__ == '__main__':
             clock.tick(60)
 
             if movie.get_busy() == 0:
-                movie.rewind()
-                movie.play()
+                print('{} - rewind'.format(datetime.now()))
+                movie, movie_screen = changeVideo(current_video, WIDTH, HEIGHT)
 
         # if we are not in postproduction state
         if not postproduction_flag.is_set() and not show_qr_code:
@@ -360,21 +363,24 @@ if __name__ == '__main__':
             if not postproduction_finished_flag.is_set():
 
                 if not play_status_movie:
-                    movie, movie_screen = changeVideo(os.path.join(ROOT_PATH,'img','development.mp4'), WIDTH, HEIGHT)
+                    current_video = os.path.join(ROOT_PATH,'img','development.mp4')
+                    movie, movie_screen = changeVideo(current_video, WIDTH, HEIGHT)
                     play_status_movie = True
 
 
             elif postproduction_finished_flag.is_set() and not show_qr_code:
-                bg = pygame.image.load(os.path.join(ROOT_PATH,'img','deinvideo.png'))
+                bg = pygame.image.load(os.path.join(ROOT_PATH,'img','euer_film.png'))
+                screen.blit(background,(0,0))
                 screen.blit(bg,(0,0))
                 #show shortlink
                 f = open('url', 'r')
                 url = f.read()
                 font = pygame.font.Font(os.path.join(ROOT_PATH, 'font', 'Cousine-Regular.ttf'), 16)
                 text = font.render(url, 1, (255, 255, 255))
-                screen.blit(text, (135, 268))
+                screen.blit(text, (WIDTH-text.get_width()-15, 272))
 
-                movie, movie_screen = changeVideo(os.path.join(VIDEO_PATH), 342, 238)
+                current_video = VIDEO_PATH
+                movie, movie_screen = changeVideo(current_video, 342, 238)
                 qr_code_path = os.path.join(ROOT_PATH,'img', 'code.png')
                 imgQR = pygame.image.load(qr_code_path)
                 widthQR = imgQR.get_width()
@@ -382,7 +388,7 @@ if __name__ == '__main__':
                 num = 2
                 img = scale(imgQR, (widthQR * num, heightQR * num))
 
-                screen.blit(img,(WIDTH-(widthQR * num), HEIGHT-(heightQR * num)))
+                screen.blit(img,(WIDTH-(widthQR * num)-15, 238/2-((heightQR * num)/2)))
                 #pygame.display.update()
                 #clock.tick(60)
                 postproduction_flag.clear()
@@ -396,7 +402,6 @@ if __name__ == '__main__':
             timespent = (pygame.time.get_ticks() - first_rec_timestamp)/1000
 
             if frame < 1:
-                print('FUCK YOU!!!!!!!')
                 # repaint last frame
                 image = ALL_FRAMES[frame - 1]
                 img = scale(pygame.image.load(image), (WIDTH,HEIGHT))
