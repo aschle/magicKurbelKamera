@@ -63,6 +63,10 @@ def postproduction(stop_recording_event, rec_timeout_flag, rec_truly_started_eve
     url = upload(VIDEO_PATH)
     print('{} - Finished uploading'.format(datetime.now()))
 
+    f = open('url', 'w')
+    f.write(url)
+    f.close()
+
     generateQrCode(url, os.path.join(ROOT_PATH,'img') )
 
     postproduction_finished_flag.set()
@@ -73,8 +77,10 @@ def toggleRelais(pin):
     GPIO.output(pin, not GPIO.input(pin))
 
 
-def changeVideo(path):
+def changeVideo(path, width, height):
+    print('changeVideo', path, width, height)
     movie = pygame.movie.Movie(path)
+    print(movie.get_size())
     movie_screen = pygame.Surface(movie.get_size()).convert()
     movie.set_display(movie_screen)
     movie.play()
@@ -177,7 +183,7 @@ if __name__ == '__main__':
     # end of pygame setup
 
     # load init video
-    movie, movie_screen = changeVideo(os.path.join(ROOT_PATH,'img','magic.mp4'))
+    movie, movie_screen = changeVideo(os.path.join(ROOT_PATH,'img','magic.mp4'), WIDTH, HEIGHT)
 
     frame = 1
     ticks = 0
@@ -209,7 +215,7 @@ if __name__ == '__main__':
             last_event = pygame.time.get_ticks()
 
         if (reset_flag.is_set()):
-            movie, movie_screen = changeVideo(os.path.join(ROOT_PATH,'img','magic.mp4'))
+            movie, movie_screen = changeVideo(os.path.join(ROOT_PATH,'img','magic.mp4'), WIDTH, HEIGHT)
             play_status_movie = True
             show_qr_code = False
             movie.stop()
@@ -220,6 +226,7 @@ if __name__ == '__main__':
             clearRecFolder(REC_PATH, rec_timestamps, REC_FPS)
             postproduction_finished_flag.clear()
 
+            GPIO.setwarnings(False)
             GPIO.setup( 7, GPIO.OUT)
             GPIO.setup( 11, GPIO.OUT)
 
@@ -230,7 +237,7 @@ if __name__ == '__main__':
 
         # display video
         if play_status_movie:
-            screen.blit(background,(0,0))
+            #screen.blit(background,(0,0))
             screen.blit(movie_screen,(0,0))
             pygame.display.update()
             clock.tick(60)
@@ -316,7 +323,8 @@ if __name__ == '__main__':
                             Process(target=recordFrames,
                                     args=(rec_lock,
                                           recording_flag,
-                                          WIDTH, HEIGHT,
+                                          # WIDTH, HEIGHT,
+                                          342, 238,
                                           REC_DURATION,
                                           REC_FPS,
                                           stop_recording_event,
@@ -355,19 +363,26 @@ if __name__ == '__main__':
             if not postproduction_finished_flag.is_set():
 
                 if not play_status_movie:
-                    movie, movie_screen = changeVideo(os.path.join(ROOT_PATH,'img','development.mp4'))
+                    movie, movie_screen = changeVideo(os.path.join(ROOT_PATH,'img','development.mp4'), WIDTH, HEIGHT)
                     play_status_movie = True
 
 
             elif postproduction_finished_flag.is_set() and not show_qr_code:
-                play_status_movie = False
-                qr_code_path = os.path.join(ROOT_PATH,'img', 'code.png')
-                bg = pygame.image.load(os.path.join(ROOT_PATH,'img','bg.png'))
+                bg = pygame.image.load(os.path.join(ROOT_PATH,'img','deinvideo.png'))
                 screen.blit(bg,(0,0))
-                img = scale(pygame.image.load(qr_code_path), (111,111))
-                screen.blit(img,(310,163))
-                pygame.display.update()
-                clock.tick(60)
+                #show shortlink
+                f = open('url', 'r')
+                url = f.read()
+                font = pygame.font.Font(None, 24)
+                text = font.render(url, 1, (255, 255, 255))
+                screen.blit(text, (135, 268))
+
+                movie, movie_screen = changeVideo(os.path.join(VIDEO_PATH), 342, 238)
+                qr_code_path = os.path.join(ROOT_PATH,'img', 'code.png')
+                img = scale(pygame.image.load(qr_code_path), (50,50))
+                screen.blit(img,(350,255))
+                #pygame.display.update()
+                #clock.tick(60)
                 postproduction_flag.clear()
                 last_event = pygame.time.get_ticks()
                 show_qr_code = True
@@ -378,7 +393,6 @@ if __name__ == '__main__':
             timespent = (pygame.time.get_ticks() - first_rec_timestamp)/1000
             imgnum = (timespent/5)%12
             image = TIMER_IMGS[imgnum]
-            print imgnum
             img = scale(pygame.image.load(image), (50,50))
             screen.blit(img,(CLOCK_X,CLOCK_Y))
 

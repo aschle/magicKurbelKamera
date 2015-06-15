@@ -55,6 +55,7 @@ def recordFrames(lock, recording_flag, width, height, rec_duration, rec_fps, sto
         os.remove(os.path.join(RECORD_PATH, f))
 
     print('{} - record button pressed'.format(datetime.now()))
+    print('{} - width: {}, height: {}'.format(datetime.now(), width, height))
 
     # instantiate a camera object
     camera = picamera.PiCamera()
