@@ -353,6 +353,12 @@ if __name__ == '__main__':
                     elif event.key == pygame.K_h:
                         os.system('sudo halt')
 
+        elif not postproduction_flag.is_set() and show_qr_code:
+            # if we are showing the qr code then it is possible to press X
+            for event in pygame.event.get():
+                if event.key == pygame.K_e:
+                    print "real"
+                    reset_flag.set()
 
         else:
             # ignore keyboard-Events while in postproduction
