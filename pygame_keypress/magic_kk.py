@@ -347,9 +347,9 @@ if __name__ == '__main__':
         elif not postproduction_flag.is_set() and show_qr_code:
             # if we are showing the qr code then it is possible to press X
             for event in pygame.event.get():
-                if event.key == pygame.K_e:
-                    print "real"
-                    reset_flag.set()
+                if event.type == pygame.KEYUP:
+                    if event.key == pygame.K_e:
+                        reset_flag.set()
 
         else:
             # ignore keyboard-Events while in postproduction
@@ -395,7 +395,8 @@ if __name__ == '__main__':
 
             # paint timer icon
             timespent = (pygame.time.get_ticks() - first_rec_timestamp)/1000
-            image = TIMER_IMGS[timespent%61 - 1]
+            num = timespent%61
+            image = TIMER_IMGS[num]
             img = pygame.image.load(image)
             screen.blit(img,(0,0))
 
