@@ -370,19 +370,19 @@ if __name__ == '__main__':
                 #show shortlink
                 f = open('url', 'r')
                 url = f.read()
-                font = pygame.font.Font(os.path.join(ROOT_PATH, 'font', 'Cousine-Regular'), 32)
+                font = pygame.font.Font(os.path.join(ROOT_PATH, 'font', 'Cousine-Regular.ttf'), 16)
                 text = font.render(url, 1, (255, 255, 255))
                 screen.blit(text, (135, 268))
 
                 movie, movie_screen = changeVideo(os.path.join(VIDEO_PATH), 342, 238)
                 qr_code_path = os.path.join(ROOT_PATH,'img', 'code.png')
                 imgQR = pygame.image.load(qr_code_path)
-                widthQR=imgQR.get_width()
-                hightQR=imgQR.get_heigth()
+                widthQR = imgQR.get_width()
+                heightQR = imgQR.get_height()
                 num = 2
-                img=scale(imgQR, (widthQR*num, hightQR*num))
+                img = scale(imgQR, (widthQR * num, heightQR * num))
 
-                screen.blit(img,(350,255))
+                screen.blit(img,(WIDTH-(widthQR * num), HEIGHT-(heightQR * num)))
                 #pygame.display.update()
                 #clock.tick(60)
                 postproduction_flag.clear()
