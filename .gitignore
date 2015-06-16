@@ -5,3 +5,4 @@ config.cfg
 ffmpeg2pass-0.log
 *.*~
 url
+img/closing_credits/*.jpg
