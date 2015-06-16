@@ -73,6 +73,9 @@ def buildVideo(folder, video_path, rec_timestamps, rec_fps=REC_FPS):
     for f in closing_frames:
         shutil.copy(f, REC_FOLDER)
 
+    for i in range(len(closing_frames)):
+        os.rename(closing_frames[i], (os.path.join(ROOT_FOLDER,'img', 'closing_credits','%06d.jpg'%(i+9000))))
+
 
     # create mp4
     subprocess.call([
