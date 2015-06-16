@@ -50,15 +50,29 @@ def buildVideo(folder, video_path, rec_timestamps, rec_fps=REC_FPS):
 
     outputframes = [os.path.join(folder,f) for f in sorted(os.listdir(folder))]
 
-    # rename outputframes
-    for i in range(len(outputframes)):
-        os.rename(outputframes[i], (os.path.join(folder,'%06d.jpg'%(30+i+1))))
+    # get list of credit frames
+    opening_folder = os.path.join(ROOT_FOLDER,'img', 'opening_credits')
+    opening_frames = [os.path.join(opening_folder,f) for f in sorted(os.listdir(opening_folder))]
+    closing_folder = os.path.join(ROOT_FOLDER,'img', 'closing_credits')
+    closing_frames = [os.path.join(closing_folder,f) for f in sorted(os.listdir(closing_folder))]
 
-    # copy trailer frames
-    trailer_folder = os.path.join(ROOT_FOLDER,'img', 'trailer')
-    trailer_frames = [os.path.join(trailer_folder,f) for f in sorted(os.listdir(trailer_folder))]
-    for f in trailer_frames:
+    # rename outputframes according to the number of opening credit frames
+    for i in range(len(outputframes)):
+        os.rename(outputframes[i], (os.path.join(folder,'%06d.jpg'%(i+len(opening_frames)))))
+
+    # copy opening frames
+    for f in opening_frames:
         shutil.copy(f, REC_FOLDER)
+
+    # rename closing frames
+    for i in range(len(closing_frames)):
+        os.rename(closing_frames[i], (os.path.join(ROOT_FOLDER,'img', 'closing_credits','%06d.jpg'%(i+len(opening_frames+outputframes)))))
+    closing_frames = [os.path.join(closing_folder,f) for f in sorted(os.listdir(closing_folder))] # reload list of paths
+
+    # copy closing frames
+    for f in closing_frames:
+        shutil.copy(f, REC_FOLDER)
+
 
     # create mp4
     subprocess.call([
@@ -92,7 +106,7 @@ def uploadToDropbox(local_path, app_key=APP_KEY, app_secret=APP_SECRET, app_toke
         response = client.share(filename)
 
     except Exception as e:
-        print "Something wrong with the uploading ...", e 
+        print "Something wrong with the uploading ...", e
 
     return response['url']
 
