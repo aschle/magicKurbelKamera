@@ -77,13 +77,21 @@ def buildVideo(folder, video_path, rec_timestamps, rec_fps=REC_FPS):
 # TODO: implement abstract upload class
 def uploadToDropbox(local_path, app_key=APP_KEY, app_secret=APP_SECRET, app_token=APP_TOKEN):
 
-    flow = dropbox.client.DropboxOAuth2FlowNoRedirect(app_key, app_secret)
-    client = dropbox.client.DropboxClient(app_token)
+    response = 'http://www.yiyinglu.com/wp-content/uploads/2013/11/lifting-a-dreamer-2009.jpg'
 
-    f = open(local_path, 'rb')
-    filename = 'videos/cdmkk_%s.mp4' % (datetime.now().strftime('%Y%m%d_%H%M%S'),)
-    client.put_file(filename, f)
-    response = client.share(filename)
+    try:
+        flow = dropbox.client.DropboxOAuth2FlowNoRedirect(app_key, app_secret)
+        client = dropbox.client.DropboxClient(app_token)
+
+        f = open(local_path, 'rb')
+        filename = 'videos/cdmkk_%s.mp4' % (datetime.now().strftime('%Y%m%d_%H%M%S'),)
+        client.put_file(filename, f)
+        response = client.share(filename)
+        break
+
+    except Exception as e:
+        print "Something wrong with the uploading ...", e 
+
     return response['url']
 
 def generateQrCode(url, folder):
