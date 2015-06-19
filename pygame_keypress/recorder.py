@@ -17,16 +17,7 @@ if config.getboolean('System','camera'):
     import picamera
 if config.getboolean('System','gpio'):
     import RPi.GPIO as GPIO
-    # init GPIO
-    GPIO.setmode(GPIO.BOARD)
 
-    # # Leuchtkasten
-    # GPIO.setup( 7, GPIO.OUT)
-    # GPIO.setup( 7, GPIO.HIGH)
-
-    # # Rec-Lampe
-    # GPIO.setup(11, GPIO.OUT)
-    # GPIO.setup(11, GPIO.HIGH)
 
 
 def generateFilenamesForRecording(rec_duration, rec_fps, stop_recording_event):
@@ -51,6 +42,7 @@ def recordFrames(lock, recording_flag, width, height, rec_duration, rec_fps, sto
     recording_flag.set()
 
     if GPIO_ACTIVE:
+        GPIO.setmode(GPIO.BOARD)
         GPIO.setup( 7, GPIO.OUT)
         GPIO.setup( 11, GPIO.OUT)
 

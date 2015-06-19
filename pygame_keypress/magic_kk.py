@@ -13,11 +13,13 @@ import ConfigParser
 config = ConfigParser.ConfigParser()
 config.readfp(open('config.cfg'))
 
-if config.getboolean('System','gpio'):
+GPIO_ACTIVE = config.getboolean('System','gpio')
+
+if GPIO_ACTIVE
     import RPi.GPIO as GPIO
     GPIO.setmode(GPIO.BOARD)
 
-    GPIO.setup(13, GPIO.OUT)
+    GPIO.setup(13, GPIO.OUT) -- Relais
     GPIO.output(13, GPIO.HIGH)
 
     # GPIO.setup(15, GPIO.OUT)
@@ -210,6 +212,11 @@ if __name__ == '__main__':
             first_rec_timestamp = -1
             clearRecFolder(REC_PATH, rec_timestamps, REC_FPS)
             postproduction_finished_flag.clear()
+            if GPIO_ACTIVE:
+                GPIO.setup( 7, GPIO.OUT)
+                GPIO.setup( 11, GPIO.OUT)
+                GPIO.output(7,GPIO.HIGH) # turn off rec-Button lamp
+                GPIO.output(11,GPIO.HIGH) # turn off lighting box
             reset_flag.clear()
 
         # display video
@@ -240,7 +247,8 @@ if __name__ == '__main__':
 
                         play_status_movie = False
 
-                        toggleRelais(13) # klick klack
+                        if GPIO_ACTIVE:
+                            toggleRelais(13) # klick klack
 
                         # increment or decrement the actual frame number
                         if event.key == pygame.K_LEFT:   frame -= 1
@@ -345,7 +353,7 @@ if __name__ == '__main__':
                 show_qr_code = True
 
 
-
-    GPIO.cleanup()
+    if GPIO_ACTIVE
+        GPIO.cleanup()
 
 
