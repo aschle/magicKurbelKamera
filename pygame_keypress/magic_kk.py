@@ -15,7 +15,7 @@ config.readfp(open('config.cfg'))
 
 GPIO_ACTIVE = config.getboolean('System','gpio')
 
-if GPIO_ACTIVE
+if GPIO_ACTIVE:
     import RPi.GPIO as GPIO
     GPIO.setmode(GPIO.BOARD)
 
@@ -353,7 +353,7 @@ if __name__ == '__main__':
                 show_qr_code = True
 
 
-    if GPIO_ACTIVE
+    if GPIO_ACTIVE: 
         GPIO.cleanup()
 
 

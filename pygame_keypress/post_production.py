@@ -87,7 +87,6 @@ def uploadToDropbox(local_path, app_key=APP_KEY, app_secret=APP_SECRET, app_toke
         filename = 'videos/cdmkk_%s.mp4' % (datetime.now().strftime('%Y%m%d_%H%M%S'),)
         client.put_file(filename, f)
         response = client.share(filename)
-        break
 
     except Exception as e:
         print "Something wrong with the uploading ...", e 
