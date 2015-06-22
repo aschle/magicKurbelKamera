@@ -129,6 +129,10 @@ if __name__ == '__main__':
     REC_DURATION = config.getint('Recorder','rec_duration') # seconds
     REC_FPS = config.getint('Recorder','rec_fps')
 
+    # needed for timer while recoding
+    # every second display a new pic
+    SECOND = 100
+
 
     rec_timestamps = [0]
     first_rec_timestamp = -1
@@ -200,7 +204,7 @@ if __name__ == '__main__':
             last_event = pygame.time.get_ticks()
 
 
-
+        # reset everything    
         if (reset_flag.is_set()):
             movie, movie_screen = changeVideo(os.path.join(ROOT_PATH,'img','magic.mp4'))
             play_status_movie = True
@@ -230,7 +234,7 @@ if __name__ == '__main__':
                 movie.rewind()
                 movie.play()
 
-        # if we are not in postproduction state
+        # if we are not in a postproduction state
         if not postproduction_flag.is_set() and not show_qr_code:
 
             for event in pygame.event.get():
@@ -259,6 +263,11 @@ if __name__ == '__main__':
 
                         image = ALL_FRAMES[frame - 1]
                         img = scale(pygame.image.load(image), (WIDTH,HEIGHT))
+
+                        # if in recoding state then show time
+                        if (rec_truly_started_event.is_set()):
+                            # TODO
+                        
                         screen.blit(img,(0,0))
                         pygame.display.update() # pygame.display.flip()
                         clock.tick(60)
