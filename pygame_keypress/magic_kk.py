@@ -204,8 +204,6 @@ if __name__ == '__main__':
             reset_flag.set()
             last_event = pygame.time.get_ticks()
 
-
-
         if (reset_flag.is_set()):
             movie, movie_screen = changeVideo(os.path.join(ROOT_PATH,'img','magic.mp4'))
             play_status_movie = True
@@ -217,6 +215,7 @@ if __name__ == '__main__':
             first_rec_timestamp = -1
             clearRecFolder(REC_PATH, rec_timestamps, REC_FPS)
             postproduction_finished_flag.clear()
+            recording_flag.clear()
             if GPIO_ACTIVE:
                 GPIO.setup( 7, GPIO.OUT)
                 GPIO.setup( 11, GPIO.OUT)
@@ -351,7 +350,6 @@ if __name__ == '__main__':
 
             elif postproduction_finished_flag.is_set() and not show_qr_code:
                 play_status_movie = False
-                # display qr code on background image
                 qr_code_path = os.path.join(ROOT_PATH,'img', 'code.png')
                 bg = pygame.image.load(os.path.join(ROOT_PATH,'img','bg.png'))
                 screen.blit(bg,(0,0))
