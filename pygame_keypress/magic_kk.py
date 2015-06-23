@@ -123,12 +123,17 @@ if __name__ == '__main__':
 
 
     FRAMES_PATH = config.get('System','frames_folder')
-    ALL_FRAMES = all_frames = [os.path.join(FRAMES_PATH,f) for f in sorted(os.listdir(FRAMES_PATH))]
+    ALL_FRAMES = [os.path.join(FRAMES_PATH,f) for f in sorted(os.listdir(FRAMES_PATH))]
+
+    path = os.path.join(ROOT_PATH, 'img', 'timer')
+    TIMER_IMGS = [os.path.join(path,f) for f in sorted(os.listdir(path))]
 
     REC_PATH = config.get('System','rec_folder')
     REC_DURATION = config.getint('Recorder','rec_duration') # seconds
     REC_FPS = config.getint('Recorder','rec_fps')
 
+    CLOCK_X = config.getint('Screen','clock_x')
+    CLOCK_Y = config.getint('Screen','clock_y')
 
     rec_timestamps = [0]
     first_rec_timestamp = -1
@@ -199,8 +204,6 @@ if __name__ == '__main__':
             reset_flag.set()
             last_event = pygame.time.get_ticks()
 
-
-
         if (reset_flag.is_set()):
             movie, movie_screen = changeVideo(os.path.join(ROOT_PATH,'img','magic.mp4'))
             play_status_movie = True
@@ -212,6 +215,7 @@ if __name__ == '__main__':
             first_rec_timestamp = -1
             clearRecFolder(REC_PATH, rec_timestamps, REC_FPS)
             postproduction_finished_flag.clear()
+            recording_flag.clear()
             if GPIO_ACTIVE:
                 GPIO.setup( 7, GPIO.OUT)
                 GPIO.setup( 11, GPIO.OUT)
@@ -260,8 +264,8 @@ if __name__ == '__main__':
                         image = ALL_FRAMES[frame - 1]
                         img = scale(pygame.image.load(image), (WIDTH,HEIGHT))
                         screen.blit(img,(0,0))
-                        pygame.display.update() # pygame.display.flip()
-                        clock.tick(60)
+                        # pygame.display.update() # pygame.display.flip()
+                        # clock.tick(60)
 
 
                         # count ms since first tick
@@ -282,6 +286,12 @@ if __name__ == '__main__':
                     elif event.key == pygame.K_ESCAPE:
                         mainloop = False # user pressed ESC
 
+                    # Testing the timer
+                    elif event.key == pygame.K_g:
+                        if (recording_flag.is_set()):
+                            recording_flag.clear()
+                        else:
+                            recording_flag.set()
 
                     # Record Button
                     elif event.key == pygame.K_r and config.getboolean('System','camera'):
@@ -340,7 +350,6 @@ if __name__ == '__main__':
 
             elif postproduction_finished_flag.is_set() and not show_qr_code:
                 play_status_movie = False
-                # display qr code on background image
                 qr_code_path = os.path.join(ROOT_PATH,'img', 'code.png')
                 bg = pygame.image.load(os.path.join(ROOT_PATH,'img','bg.png'))
                 screen.blit(bg,(0,0))
@@ -352,6 +361,17 @@ if __name__ == '__main__':
                 last_event = pygame.time.get_ticks()
                 show_qr_code = True
 
+
+        # if in recoding state then update timer image
+        if (recording_flag.is_set()):
+            timespent = (pygame.time.get_ticks() - first_rec_timestamp)/1000
+            image = TIMER_IMGS[(timespent-1)%11]
+            img = scale(pygame.image.load(image), (50,50))
+            screen.blit(img,(CLOCK_X,CLOCK_Y))
+
+        # do this all the time
+        pygame.display.update()
+        clock.tick(60)
 
     if GPIO_ACTIVE: 
         GPIO.cleanup()

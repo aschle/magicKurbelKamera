@@ -63,18 +63,21 @@ def buildVideo(folder, video_path, rec_timestamps, rec_fps=REC_FPS):
     # create mp4
     subprocess.call([
         '/usr/local/bin/ffmpeg',
-        '-v', '16',
+        '-v',           '16',
         '-y',
-        '-framerate', '24',
-        '-i', '/var/tmp/rec/%06d.jpg',
-        '-c:v', 'libx264',
-        '-preset', 'faster',
-        '-pix_fmt', 'yuv420p',
+        '-framerate',   '24',
+        '-i',           '/var/tmp/rec/%06d.jpg',
+        '-vcodec',      'mpeg1video',
+        '-mbd',         'rd',
+        '-trellis',     '2',
+        '-cmp',         '2',
+        '-subcmp',      '2',
+        '-g',           '100',
+        '-pass',        '1',
         video_path
     ])
 
 
-# TODO: implement abstract upload class
 def uploadToDropbox(local_path, app_key=APP_KEY, app_secret=APP_SECRET, app_token=APP_TOKEN):
 
     response = 'http://www.yiyinglu.com/wp-content/uploads/2013/11/lifting-a-dreamer-2009.jpg'
