@@ -376,7 +376,12 @@ if __name__ == '__main__':
 
                 movie, movie_screen = changeVideo(os.path.join(VIDEO_PATH), 342, 238)
                 qr_code_path = os.path.join(ROOT_PATH,'img', 'code.png')
-                img = scale(pygame.image.load(qr_code_path), (50,50))
+                imgQR = pygame.image.load(qr_code_path)
+                widthQR=imgQR.get_width()
+                hightQR=imgQR.get_heigth()
+                num = 2
+                img=scale(imgQR, (widthQR*num, hightQR*num))
+
                 screen.blit(img,(350,255))
                 #pygame.display.update()
                 #clock.tick(60)
