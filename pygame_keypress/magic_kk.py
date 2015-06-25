@@ -141,9 +141,6 @@ if __name__ == '__main__':
     REC_DURATION = config.getint('Recorder','rec_duration') # seconds
     REC_FPS = config.getint('Recorder','rec_fps')
 
-    CLOCK_X = config.getint('Screen','clock_x')
-    CLOCK_Y = config.getint('Screen','clock_y')
-
     rec_timestamps = [0]
     first_rec_timestamp = -1
 
@@ -296,13 +293,6 @@ if __name__ == '__main__':
                     elif event.key == pygame.K_ESCAPE:
                         mainloop = False # user pressed ESC
 
-                    # Testing the timer
-                    elif event.key == pygame.K_g:
-                        if (recording_flag.is_set()):
-                            recording_flag.clear()
-                        else:
-                            recording_flag.set()
-
                     # Record Button
                     elif event.key == pygame.K_r and config.getboolean('System','camera'):
                         if not recording_flag.is_set():
@@ -397,10 +387,9 @@ if __name__ == '__main__':
         # if in recoding state then update timer image
         if (recording_flag.is_set()):
             timespent = (pygame.time.get_ticks() - first_rec_timestamp)/1000
-            imgnum = (timespent/5)%12
-            image = TIMER_IMGS[imgnum]
+            image = TIMER_IMGS[timespent%61 - 1]
             img = scale(pygame.image.load(image), (50,50))
-            screen.blit(img,(CLOCK_X,CLOCK_Y))
+            screen.blit(img,(0,0))
 
         # do this all the time
         pygame.display.update()
