@@ -388,7 +388,7 @@ if __name__ == '__main__':
         if (recording_flag.is_set()):
             timespent = (pygame.time.get_ticks() - first_rec_timestamp)/1000
             image = TIMER_IMGS[timespent%61 - 1]
-            img = scale(pygame.image.load(image), (50,50))
+            img = pygame.image.load(image)
             screen.blit(img,(0,0))
 
         # do this all the time
