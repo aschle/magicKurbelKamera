@@ -186,6 +186,7 @@ if __name__ == '__main__':
     frame = 1
     ticks = 0
     mainloop = True
+    last_event = pygame.time.get_ticks()
 
     # magic ahead
     while mainloop:
