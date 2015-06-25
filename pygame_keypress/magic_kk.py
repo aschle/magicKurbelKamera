@@ -143,6 +143,7 @@ if __name__ == '__main__':
 
     rec_timestamps = [0]
     first_rec_timestamp = -1
+    last_frame = -1
 
 
     print('{} - start magicKurbelKamera\nresolution: {} x {}'.format(datetime.now(), WIDTH,HEIGHT))
@@ -185,7 +186,6 @@ if __name__ == '__main__':
     frame = 1
     ticks = 0
     mainloop = True
-    last_event = pygame.time.get_ticks()
 
     # magic ahead
     while mainloop:
@@ -386,6 +386,13 @@ if __name__ == '__main__':
 
         # if in recoding state then update timer image
         if (recording_flag.is_set()):
+
+            # repaint last frame
+            image = ALL_FRAMES[frame - 1]
+            img = scale(pygame.image.load(image), (WIDTH,HEIGHT))
+            screen.blit(img,(0,0))
+
+            # paint timer icon
             timespent = (pygame.time.get_ticks() - first_rec_timestamp)/1000
             image = TIMER_IMGS[timespent%61 - 1]
             img = pygame.image.load(image)
