@@ -370,7 +370,7 @@ if __name__ == '__main__':
                 #show shortlink
                 f = open('url', 'r')
                 url = f.read()
-                font = pygame.font.Font(None, 24)
+                font = pygame.font.Font(os.path.join(ROOT_PATH, 'font', 'Cousine-Regular'), 32)
                 text = font.render(url, 1, (255, 255, 255))
                 screen.blit(text, (135, 268))
 
