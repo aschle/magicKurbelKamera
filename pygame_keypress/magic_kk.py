@@ -393,13 +393,15 @@ if __name__ == '__main__':
         # if in recoding state then update timer image
         if (recording_flag.is_set()):
 
-            # repaint last frame
-            image = ALL_FRAMES[frame - 1]
-            img = scale(pygame.image.load(image), (WIDTH,HEIGHT))
-            screen.blit(img,(0,0))
+            timespent = (pygame.time.get_ticks() - first_rec_timestamp)/1000
+
+            if not (timespent == 0)
+                # repaint last frame
+                image = ALL_FRAMES[frame - 1]
+                img = scale(pygame.image.load(image), (WIDTH,HEIGHT))
+                screen.blit(img,(0,0))
 
             # paint timer icon
-            timespent = (pygame.time.get_ticks() - first_rec_timestamp)/1000
             num = timespent%61
             image = TIMER_IMGS[num]
             img = pygame.image.load(image)
