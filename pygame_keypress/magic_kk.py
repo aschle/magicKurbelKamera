@@ -181,7 +181,7 @@ if __name__ == '__main__':
     # end of pygame setup
 
     # load init video
-    movie, movie_screen = changeVideo(os.path.join(ROOT_PATH,'img','magic.mp4'), WIDTH, HEIGHT)
+    movie, movie_screen = changeVideo(os.path.join(ROOT_PATH,'img','init.mp4'), WIDTH, HEIGHT)
 
     frame = 1
     ticks = 0
@@ -213,7 +213,7 @@ if __name__ == '__main__':
             last_event = pygame.time.get_ticks()
 
         if (reset_flag.is_set()):
-            movie, movie_screen = changeVideo(os.path.join(ROOT_PATH,'img','magic.mp4'), WIDTH, HEIGHT)
+            movie, movie_screen = changeVideo(os.path.join(ROOT_PATH,'img','init.mp4'), WIDTH, HEIGHT)
             play_status_movie = True
             show_qr_code = False
             movie.stop()
