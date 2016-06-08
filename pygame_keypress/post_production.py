@@ -9,10 +9,12 @@ import pyqrcode
 
 from datetime import datetime
 
-# removing InsecurePlatformWarning
-# import urllib3
-# urllib3.disable_warnings()
+#removing InsecurePlatformWarning
+import urllib3
+urllib3.disable_warnings()
 
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
 
 import ConfigParser
 config = ConfigParser.ConfigParser()
@@ -79,7 +81,7 @@ def buildVideo(folder, video_path, rec_timestamps, rec_fps=REC_FPS):
 
     # create mp4
     subprocess.call([
-        '/usr/local/bin/ffmpeg',
+        '/usr/src/FFmpeg/ffmpeg',
         '-v',           '16',
         '-y',
         '-framerate',   '24',
@@ -110,7 +112,8 @@ def uploadToDropbox(local_path, app_key=APP_KEY, app_secret=APP_SECRET, app_toke
 
     except Exception as e:
         print "Something wrong with the uploading ...", e
-
+    
+    print(response)
     return response['url']
 
 def generateQrCode(url, folder):

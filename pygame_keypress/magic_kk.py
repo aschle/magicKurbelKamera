@@ -56,7 +56,8 @@ def postproduction(stop_recording_event, rec_timeout_flag, rec_truly_started_eve
     rec_timeout_flag.clear()
     rec_truly_started_event.clear()
 
-    print('{} - Start building video'.format(datetime.now()))
+    print('{} - Start building video - RECORD_PATH: {}, VIDEO_PATH: {}'.format(datetime.now(), RECORD_PATH, VIDEO_PATH))
+    
     buildVideo(RECORD_PATH, VIDEO_PATH, rec_timestamps, REC_FPS)
     print('{} - Finished building video'.format(datetime.now()))
     print('{} - Start uploading'.format(datetime.now()))
@@ -174,6 +175,7 @@ if __name__ == '__main__':
         pygame.mouse.set_visible(0)
     else:
         screen = pygame.display.set_mode((WIDTH,HEIGHT))
+        pygame.mouse.set_visible(0)
 
     background = pygame.Surface(screen.get_size()) # dunno
     background.fill((0,0,0)) # black background
